@@ -208,3 +208,18 @@ $$
 \therefore N_{1} = \frac{1}{4}(\eta_{1} - 1)(\eta_{2} - 1)(-\eta_{1} - \eta_{2} - 1)
 $$
 
+The shape function for an intermediate node along the length of the side of an element (e.g., $N_{2}$ in an 8-noded 2D element) can be derived in a more straight-forward fashion:
+
+$$
+N_{2} = (\eta_{1} - 1)(\eta_{1} + 1)(\eta_{2} - 1)*C
+$$
+
+@ $\mathbf{\eta} = (0, -1)$
+
+$$
+N_{2} = 1 = (-1)(1)(-2)*C \rightarrow C = \frac{1}{2}
+$$
+
+$$
+\therefore N_{2} = \frac{1}{2}(\eta_{1} - 1)(\eta_{1} + 1)(\eta_{2} - 1)
+$$
