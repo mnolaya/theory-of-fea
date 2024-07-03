@@ -1,4 +1,4 @@
-# Homework 1 Solution
+# Homework 0 Solution
 
 Michael N. Olaya
 
