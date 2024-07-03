@@ -223,3 +223,6 @@ $$
 $$
 \therefore N_{2} = \frac{1}{2}(\eta_{1} - 1)(\eta_{1} + 1)(\eta_{2} - 1)
 $$
+
+> [!Tip]
+> To verify correct derivation of shape functions, for any coordinate $\mathbf{\eta}$ in an element, check that $\sum N_{i}(\eta) = 1$.
