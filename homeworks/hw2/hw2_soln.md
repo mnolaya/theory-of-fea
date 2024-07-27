@@ -5,11 +5,12 @@ Michael N. Olaya
 July 2024
 
 > [!Note]
+>
 > Coordinate system notation used in this homework is:
 > $$
-> (x, y) \rightarrow (x_{1}, x_{2}) \\
-> (\xi, \eta) \rightarrow (\eta_{1}, \eta_{2})
-> $$
+(x, y) \rightarrow (x_{1}, x_{2}) \\
+(\xi, \eta) \rightarrow (\eta_{1}, \eta_{2})
+$$
 
 ## Problem 1
 
