@@ -6,26 +6,20 @@ import numpy as np
 import matplotlib.pyplot as plt
 from attrs import define
 
+from mfea.utils import make_natural_grid
+
+DEBUG_TOL = 1e-6
+
 @define
 class Node:
     element_id: int
     element_coords: np.ndarray
     natural_coords: np.ndarray
 
-# Compute the value of a shape function for a series of grid points in the natural coordinate system.
-def _compute_shape_func(shape_func: Callable, eta_grid: tuple[np.ndarray]):
-    val = []
-    for i in range(eta_grid[0].shape[0]):
-        row = []
-        for j in range(eta_grid[1].shape[0]):
-            e1, e2 = eta_grid[0][i, j], eta_grid[1][i][j]
-            row.append(shape_func(e1, e2))
-        val.append(np.array(row))
-    return np.array(val)
-
 @define
 class Element2D:
     nodes: list[Node]
+    _debug: bool = False
     
     @abstractmethod
     def get_shape_funcs(self) -> list:
@@ -46,9 +40,7 @@ class Element2D:
     
     def interpolate(self, nodal_vec: np.ndarray, nvals: int = 100) -> tuple[np.ndarray]:
         # Create grid for the shape functions
-        eta_1 = np.linspace(-1, 1, nvals)
-        eta_2 = np.linspace(-1, 1, nvals)
-        eta_1, eta_2 = np.meshgrid(eta_1, eta_2)
+        eta_1, eta_2 = make_natural_grid(nvals)
 
         # Interpolate for each point on the grid
         interpolated = []
@@ -56,7 +48,13 @@ class Element2D:
             row = []
             for j in range(nvals):
                 e1, e2 = eta_1[i, j], eta_2[i, j]
-                row.append(np.matmul(self.N(e1, e2), nodal_vec))
+                N = self.N(e1, e2)
+                if self._debug:
+                    if sum(N[0, :]) < (1 - DEBUG_TOL):
+                        print('Warning! The sum of the nodal shape functions does not equal 1!')
+                        print(f'Row 1 of N: {N[0, :]}')
+                        print(f'Sum: {sum(N[0, :])}')
+                row.append(np.matmul(N, nodal_vec))
             interpolated.append(np.array(row))
         interpolated = np.array(interpolated)
         return interpolated[:, :, 0], interpolated[:, :, 1]

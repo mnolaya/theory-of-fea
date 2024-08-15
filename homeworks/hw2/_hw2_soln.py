@@ -163,8 +163,8 @@ def main(q: np.ndarray, nvals: int) -> None:
     fig, axes = plot_shape_functions(element, domain='natural', nvals=nvals, nlevels=50)
     fig.tight_layout()
 
-    # fig, axes = element.plot_shape_functions(domain='element', nvals=nvals, nlevels=50)
-    # fig.tight_layout()
+    fig, axes = plot_shape_functions(element, domain='element', nvals=nvals, nlevels=50)
+    fig.tight_layout()
 
     # fig, axes = element.plot_element_field(nodal_vec=q, domain='element', nvals=nvals, nlevels=50, field_label='u')
     # fig.tight_layout()
