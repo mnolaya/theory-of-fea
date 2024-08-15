@@ -4,7 +4,7 @@ from abc import abstractmethod
 
 import numpy as np
 import matplotlib.pyplot as plt
-from attrs import define
+from attrs import define, field
 
 from mfea.utils import make_natural_grid
 
@@ -19,7 +19,11 @@ class Node:
 @define
 class Element2D:
     nodes: list[Node]
+    nnodes: int = field(init=False)
     _debug: bool = False
+
+    def __attrs_post_init__(self):
+        self.nnodes = len(self.nodes)
     
     @abstractmethod
     def get_shape_funcs(self) -> list:
@@ -29,6 +33,10 @@ class Element2D:
         r1 = itertools.chain.from_iterable([[f(eta_1, eta_2), 0] for f in self.get_shape_funcs()])
         r2 = itertools.chain.from_iterable([[0, f(eta_1, eta_2)] for f in self.get_shape_funcs()])
         return np.array([list(r1), list(r2)])
+    
+    # @abstractmethod
+    def J(self, eta_1: float, eta_2: float) -> np.ndarray:
+        ...
 
     @property
     def x_natural(self) -> np.ndarray:
