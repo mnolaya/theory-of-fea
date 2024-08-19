@@ -4,6 +4,7 @@ import numpy as np
 from attrs import define
 
 from mfea.baseclasses import Element2D, Node
+import mfea.utils
 
 A_2D = np.array([[1, 0, 0, 0], [0, 0, 0, 1], [0, 1, 1, 0]])
 
@@ -19,6 +20,16 @@ class Linear2D(Element2D):
         ]
         return cls(nodes)
     
+    def N(self, eta: np.ndarray) -> np.ndarray:
+        # Compute the value of the shape functions for the entire grid
+        # and then assemble into ngrid x ngrid N matrices for the element
+        N1 = self.shape_n1(eta)
+        N2 = self.shape_n2(eta)
+        N3 = self.shape_n3(eta)
+        N4 = self.shape_n4(eta)
+
+        return self._assemble_N([N1, N2, N3, N4])
+    
     def get_shape_funcs(self) -> list[np.ndarray]:
         return [
             self.shape_n1, 
@@ -27,79 +38,99 @@ class Linear2D(Element2D):
             self.shape_n4
         ]
     
-    def dN(self, eta_1: float, eta_2: float) -> np.ndarray:
-        r1 = [self.dN1_1(eta_2), 0, self.dN2_1(eta_2), 0, self.dN3_1(eta_2), 0, self.dN4_1(eta_2), 0]
-        r2 = [self.dN1_2(eta_1), 0, self.dN2_2(eta_1), 0, self.dN3_2(eta_1), 0, self.dN4_2(eta_1), 0]
-        r3 = [0, self.dN1_1(eta_2), 0, self.dN2_1(eta_2), 0, self.dN3_1(eta_2), 0, self.dN4_1(eta_2)]
-        r4 = [0, self.dN1_2(eta_1), 0, self.dN2_2(eta_1), 0, self.dN3_2(eta_1), 0, self.dN4_2(eta_1)]
-        return np.array([r1, r2, r3, r4])
+    # def dN(self, eta_1: float, eta_2: float) -> np.ndarray:
+    def dN(self, eta: np.ndarray) -> np.ndarray:
+        # Compute the value of shape function derivatives for the entire grid
+        # with respect to the first coordinate direction
+        dN1_1 = self.dN1_1(eta)
+        dN2_1 = self.dN2_1(eta)
+        dN3_1 = self.dN3_1(eta)
+        dN4_1 = self.dN4_1(eta)
+
+        # Compute the value of shape function derivatives for the entire grid
+        # with respect to the second coordinate direction
+        dN1_2 = self.dN1_2(eta)
+        dN2_2 = self.dN2_2(eta)
+        dN3_2 = self.dN3_2(eta)
+        dN4_2 = self.dN4_2(eta)
+
+        return self._assemble_dN(sfuncs_1=[dN1_1, dN2_1, dN3_1, dN4_1], sfuncs_2=[dN1_2, dN2_2, dN3_2, dN4_2])
     
     def J(self, dN: np.ndarray) -> np.ndarray:
-        J_col = np.matmul(dN, self.x_element)
-        return np.array(
+        # Assemble q array using numpy broadcasting for vectorized matrix multiplication
+        q = mfea.utils.to_col_vec(self.x_element)
+        q = mfea.utils.broadcast_ndarray_for_vectorziation(q, dN.shape[0])
+
+        # Compute the Jacobian matrix for the element
+        J_col = np.matmul(dN, q)
+        J_mat = np.array(
             [
-                [J_col[0], J_col[1]], 
-                [J_col[2], J_col[3]]
+                [J_col[:, :, 0, 0], J_col[:, :, 1, 0]], 
+                [J_col[:, :, 2, 0], J_col[:, :, 3, 0]]
             ]
-        ), J_col
+        )
+
+        # Assemble the full Jacobian matrix for the element used to compute the B matrix
+        return self._assemble_J(J_mat)
     
-    def B(self, eta_1: float, eta_2: float) -> np.ndarray:
-        dN = self.dN(eta_1, eta_2)
-        J, J_col = self.J(dN)
-        zs = np.zeros(J.shape)
-        J_star = np.vstack([np.hstack([J, zs]), np.hstack([zs, J])])
-        return np.matmul(A_2D, np.matmul(np.linalg.inv(J_star), dN))
-    
-    def strain(self, eta_1: float, eta_2: float) -> np.ndarray:
-        return np.matmul(self.B(eta_1, eta_2), self.x_element)
+    def B(self, eta: np.ndarray) -> np.ndarray:
+        # Compute...
+        dN = self.dN(eta)  #  derivative matrix 
+        J = self.J(dN)  # Full Jacobian
+
+        # Assemble A matrix for mapping displacement gradients to strains in Voigt notation using numpy broadcasting for vectorized matrix multiplication
+        A = mfea.utils.broadcast_ndarray_for_vectorziation(A_2D, dN.shape[0])
+
+        # Compute B matrix for the element
+        return np.matmul(A, np.matmul(np.linalg.inv(J), dN))
         
     @staticmethod
-    def shape_n1(eta_1: float, eta_2: float) -> float:
-        return 0.25*(eta_1 - 1)*(eta_2 - 1)
+    def shape_n1(eta: np.ndarray) -> float | np.ndarray:
+        return 0.25*(eta[0] - 1)*(eta[1] - 1)
 
     @staticmethod
-    def shape_n2(eta_1: float, eta_2: float) -> float:
-        return -0.25*(eta_1 + 1)*(eta_2 - 1)
+    def shape_n2(eta: np.ndarray) -> float | np.ndarray:
+        return -0.25*(eta[0] + 1)*(eta[1] - 1)
 
     @staticmethod
-    def shape_n3(eta_1: float, eta_2: float) -> float:
-        return 0.25*(eta_1 + 1)*(eta_2 + 1)
+    def shape_n3(eta: np.ndarray) -> float | np.ndarray:
+        return 0.25*(eta[0]+ 1)*(eta[1] + 1)
 
     @staticmethod
-    def shape_n4(eta_1: float, eta_2: float) -> float:
-        return -0.25*(eta_1 - 1)*(eta_2 + 1)
+    def shape_n4(eta: np.ndarray) -> float | np.ndarray:
+        return -0.25*(eta[0] - 1)*(eta[1] + 1)
     
     @staticmethod
-    def dN1_1(eta_2: float) -> float:
-        return 0.25*(eta_2 - 1)
+    def dN1_1(eta: np.ndarray) -> float | np.ndarray:
+        return 0.25*(eta[1] - 1)
     
     @staticmethod
-    def dN1_2(eta_1: float) -> float:
-        return 0.25*(eta_1 - 1)
+    def dN1_2(eta: np.ndarray) -> float | np.ndarray:
+        return 0.25*(eta[0] - 1)
     
     @staticmethod
-    def dN2_1(eta_2: float) -> float:
-        return -0.25*(eta_2 - 1)
+    def dN2_1(eta: np.ndarray) -> float | np.ndarray:
+        return -0.25*(eta[1] - 1)
     
     @staticmethod
-    def dN2_2(eta_1: float) -> float:
-        return -0.25*(eta_1 + 1)
+    def dN2_2(eta: np.ndarray) -> float | np.ndarray:
+        return -0.25*(eta[0] + 1)
     
     @staticmethod
-    def dN3_1(eta_2: float) -> float:
-        return 0.25*(eta_2 + 1)
+    def dN3_1(eta: np.ndarray) -> float | np.ndarray:
+        return 0.25*(eta[1] + 1)
     
     @staticmethod
-    def dN3_2(eta_1: float) -> float:
-        return 0.25*(eta_1 + 1)
+    def dN3_2(eta: np.ndarray) -> float | np.ndarray:
+        return 0.25*(eta[0] + 1)
     
     @staticmethod
-    def dN4_1(eta_2: float) -> float:
-        return -0.25*(eta_2 + 1)
+    def dN4_1(eta: np.ndarray) -> float | np.ndarray:
+        return -0.25*(eta[1] + 1)
     
     @staticmethod
-    def dN4_2(eta_1: float) -> float:
-        return -0.25*(eta_1 - 1)
+    def dN4_2(eta: np.ndarray) -> float | np.ndarray:
+        return -0.25*(eta[0] - 1)
 
 @define
 class Quadratic2D(Element2D):

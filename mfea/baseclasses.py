@@ -6,9 +6,36 @@ import numpy as np
 import matplotlib.pyplot as plt
 from attrs import define, field
 
-from mfea.utils import make_natural_grid
+import mfea.utils
 
 DEBUG_TOL = 1e-6
+
+@define
+class Material:
+    E: float
+    nu: float
+
+    @property
+    def G(self) -> float:
+        return self.E/(2*(1 + self.nu))
+    
+    def D_isotropic_plane_stress(self) -> np.ndarray:
+        D = np.eye(3)
+        c = self.E/(1 - self.nu**2)
+        D[0, 1] = self.nu
+        D[1, 0] = self.nu
+        D[2, 2] = (1 - self.nu)/2
+        return c*D
+    
+    def D_isotropic_plane_strain(self) -> np.ndarray:
+        D = np.eye(3)
+        c = self.E/((1 + self.nu)*(1 - 2*self.nu))
+        D[0, 0] = 1 - self.nu
+        D[0, 1] = self.nu
+        D[1, 0] = self.nu
+        D[1, 1] = 1 - self.nu
+        D[2, 2] = (1 - 2*self.nu)/2
+        return c*D
 
 @define
 class Node:
@@ -29,40 +56,75 @@ class Element2D:
     def get_shape_funcs(self) -> list:
         ...
 
-    def N(self, eta_1: float, eta_2: float) -> np.ndarray:
-        r1 = itertools.chain.from_iterable([[f(eta_1, eta_2), 0] for f in self.get_shape_funcs()])
-        r2 = itertools.chain.from_iterable([[0, f(eta_1, eta_2)] for f in self.get_shape_funcs()])
-        return np.array([list(r1), list(r2)])
+    @abstractmethod
+    def N(self, eta: np.ndarray) -> np.ndarray:
+        '''
+        Compute the shape function matrix for a grid of natural coordinates.
+        Resulting array is of shape 2 x 2*nnodes x ngrid x ngrid, where the 2 x 2*nnodes matrix
+        corresponds to a position within the element as represented by the natural grid.
+        '''
+        ...
+
+    @abstractmethod
+    def dN(self, eta: np.ndarray) -> np.ndarray:
+        '''
+        Compute the shape function derivative matrix for a grid of natural coordinates.
+        Resulting array is of shape 2 x 2*nnodes x ngrid x ngrid, where the 2 x 2*nnodes matrix
+        corresponds to a position within the element as represented by the natural grid.
+        '''
+        ...
     
+    @staticmethod
+    def _assemble_N(sfuncs: list[np.ndarray]) -> np.ndarray:
+        zs = np.zeros(sfuncs[0].shape)  # Matrix of zeros for assembly
+        N = np.array(
+            [
+                list(itertools.chain.from_iterable([[sf.copy(), zs.copy()] for sf in sfuncs])),
+                list(itertools.chain.from_iterable([[zs.copy(), sf.copy()] for sf in sfuncs])),
+            ]
+        )
+        return mfea.utils.shift_ndarray_for_vectorization(N)  # Return array with multiplication axes moved to final two positions for vectorization
+    
+    @staticmethod
+    def _assemble_dN(sfuncs_1: list[np.ndarray], sfuncs_2: list[np.ndarray]) -> np.ndarray:
+        zs = np.zeros(sfuncs_1[0].shape)  # Matrix of zeros for assembly
+        dN = np.array(
+            [
+                list(itertools.chain.from_iterable([[sf.copy(), zs.copy()] for sf in sfuncs_1])),
+                list(itertools.chain.from_iterable([[sf.copy(), zs.copy()] for sf in sfuncs_2])),
+                list(itertools.chain.from_iterable([[zs.copy(), sf.copy()] for sf in sfuncs_1])),
+                list(itertools.chain.from_iterable([[zs.copy(), sf.copy()] for sf in sfuncs_2])),
+            ]
+        )
+        return mfea.utils.shift_ndarray_for_vectorization(dN)  # Return array with multiplication axes moved to final two positions for vectorization
+    
+    @staticmethod
+    def _assemble_J(J_mat: np.ndarray) -> np.ndarray:
+        zs = np.zeros(J_mat.shape)  # Matrix of zeros for assembly
+        J = np.array(np.vstack([np.hstack([J_mat, zs]), np.hstack([zs, J_mat])]))
+        return mfea.utils.shift_ndarray_for_vectorization(J)
+
     # @abstractmethod
     def J(self, eta_1: float, eta_2: float) -> np.ndarray:
         ...
 
     @property
     def x_natural(self) -> np.ndarray:
-        return list(itertools.chain.from_iterable([node.natural_coords for node in self.nodes]))
+        return np.array(list(itertools.chain.from_iterable([node.natural_coords for node in self.nodes])))
 
     @property
     def x_element(self) -> np.ndarray:
-        return list(itertools.chain.from_iterable([node.element_coords for node in self.nodes]))
+        return np.array(list(itertools.chain.from_iterable([node.element_coords for node in self.nodes])))
     
-    def interpolate(self, nodal_vec: np.ndarray, nvals: int = 100) -> tuple[np.ndarray]:
-        # Create grid for the shape functions
-        eta_1, eta_2 = make_natural_grid(nvals)
+    def interpolate(self, eta: np.ndarray, nodal_vec: np.ndarray) -> np.ndarray:
+        # Compute N for the array of coordinates
+        N = self.N(eta)
 
-        # Interpolate for each point on the grid
-        interpolated = []
-        for i in range(nvals):
-            row = []
-            for j in range(nvals):
-                e1, e2 = eta_1[i, j], eta_2[i, j]
-                N = self.N(e1, e2)
-                if self._debug:
-                    if sum(N[0, :]) < (1 - DEBUG_TOL):
-                        print('Warning! The sum of the nodal shape functions does not equal 1!')
-                        print(f'Row 1 of N: {N[0, :]}')
-                        print(f'Sum: {sum(N[0, :])}')
-                row.append(np.matmul(N, nodal_vec))
-            interpolated.append(np.array(row))
-        interpolated = np.array(interpolated)
-        return interpolated[:, :, 0], interpolated[:, :, 1]
+        # Assemble q array using numpy broadcasting for vectorized matrix multiplication
+        q = mfea.utils.to_col_vec(self.x_element)
+        q = mfea.utils.broadcast_ndarray_for_vectorziation(q, N.shape[0])
+
+        # Interpolate: phi = N*q 
+        # where q is a vector of known quantities at the element nodes
+        # and phi is the value of the quantity within the element
+        return np.matmul(N, q)
