@@ -20,33 +20,120 @@ def B_test() -> None:
     )
     Q = np.array([0, 0, 0.1, -0.1, 0.1, 0.1, -0.1, 0.1])
     mat = Material(E=2500, nu=0.35)
-    D = mat.D_isotropic_plane_stress()
+    D = mat.D_isotropic_plane_strain()
 
     eta = mfea.utils.make_natural_grid(ngrid)
     xgrid = elem.interpolate(eta, elem.x_element)
+    ugrid = elem.interpolate(eta, Q)
     B = elem.B(eta)
     q = mfea.utils.broadcast_ndarray_for_vectorziation(mfea.utils.to_col_vec(Q), ngrid)
-
     eps = np.matmul(B, q)
     sigma = np.matmul(D, eps)
 
-    component = 1
-    fig, ax = plt.subplots()
-    ax = plot_interpolated_element(xgrid, eps[:, :, (component - 1), 0], ax=ax, title=fr'$\varepsilon_{{{component}{component}}}$')
+    fig, axes = plt.subplots(ncols=2)
+    ax = plot_interpolated_element(
+        xgrid, 
+        ugrid[:, :, 0, 0], 
+        ax=axes[0], 
+        title=fr'$u_{1}$',
+        # title=fr'$\varepsilon_{{{component}{component}}}$',
+        levels=12,
+        cmap='jet',
+        continuous=True
+    )
+    ax = plot_interpolated_element(
+        xgrid, 
+        ugrid[:, :, 1, 0], 
+        ax=axes[1], 
+        title=fr'$u_{2}$',
+        # title=fr'$\varepsilon_{{{component}{component}}}$',
+        levels=12,
+        cmap='jet',
+        continuous=True
+    )
     fig.tight_layout()
 
-    fig, ax = plt.subplots()
-    ax = plot_interpolated_element(xgrid, sigma[:, :, (component - 1), 0], ax=ax, title=fr'$\sigma_{{{component}{component}}}$')
+    dN = elem.dN(eta)
+    J = elem.J(dN)
+    fig, axes = plt.subplots(ncols=4)
+    ax = plot_interpolated_element(
+        xgrid, 
+        J[:, :, 0, 0], 
+        ax=axes[0], 
+        title=fr'$J_{1}$',
+        # title=fr'$\varepsilon_{{{component}{component}}}$',
+        levels=12,
+        cmap='jet',
+        continuous=True
+    )
+    ax = plot_interpolated_element(
+        xgrid, 
+        J[:, :, 0, 1], 
+        ax=axes[1], 
+        title=fr'$J_{2}$',
+        # title=fr'$\varepsilon_{{{component}{component}}}$',
+        levels=12,
+        cmap='jet',
+        continuous=True
+    )
+    ax = plot_interpolated_element(
+        xgrid, 
+        J[:, :, 1, 0], 
+        ax=axes[2], 
+        title=fr'$J_{3}$',
+        # title=fr'$\varepsilon_{{{component}{component}}}$',
+        levels=12,
+        cmap='jet',
+        continuous=True
+    )
+    ax = plot_interpolated_element(
+        xgrid, 
+        J[:, :, 1, 1], 
+        ax=axes[3], 
+        title=fr'$J_{4}$',
+        # title=fr'$\varepsilon_{{{component}{component}}}$',
+        levels=12,
+        cmap='jet',
+        continuous=True
+    )
     fig.tight_layout()
-    # ax.contourf(xgrid[:, :, 0, 0], xgrid[:, :, 1, 0], eps[:, :, (component - 1), 0], levels=50, cmap='jet')
-    # ax.set_title(fr'$\varepsilon_{{{component}{component}}}$')
 
-    # fig, ax = plt.subplots()
-    # ax.contourf(xgrid[:, :, 0, 0], xgrid[:, :, 1, 0], sigma[:, :, (component - 1), 0], levels=50, cmap='jet')
-    # ax.set_title(fr'$\sigma_{{{component}{component}}}$')
-    # plt.show()
-    print(np.mean(eps[:, :, (component - 1), 0]))
-
+    print(np.mean(eps[:, :, 0, 0]))
+    print(np.mean(eps[:, :, 1, 0]))
+    print(np.mean(eps[:, :, 2, 0]))
+    fig, axes = plt.subplots(ncols=3)
+    ax = plot_interpolated_element(
+        xgrid, 
+        eps[:, :, 0, 0], 
+        ax=axes[0], 
+        # title=fr'$J_{1}$',
+        title=r'$\varepsilon_{11}$',
+        levels=12,
+        cmap='jet',
+        continuous=True
+    )
+    ax = plot_interpolated_element(
+        xgrid, 
+        eps[:, :, 1, 0], 
+        ax=axes[1], 
+        # title=fr'$J_{2}$',
+        title=r'$\varepsilon_{22}$',
+        levels=12,
+        cmap='jet',
+        continuous=True
+    )
+    ax = plot_interpolated_element(
+        xgrid, 
+        eps[:, :, 2, 0], 
+        ax=axes[2], 
+        # title=fr'$J_{3}$',
+        title=r'$\varepsilon_{12}$',
+        levels=12,
+        cmap='jet',
+        continuous=True
+    )    
+    fig.tight_layout()
+    plt.show()
 
 def grid_test() -> None:
     x = np.linspace(-1, 1, 1000)

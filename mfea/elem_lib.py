@@ -23,10 +23,11 @@ class Linear2D(Element2D):
     def N(self, eta: np.ndarray) -> np.ndarray:
         # Compute the value of the shape functions for the entire grid
         # and then assemble into ngrid x ngrid N matrices for the element
-        N1 = self.shape_n1(eta)
-        N2 = self.shape_n2(eta)
-        N3 = self.shape_n3(eta)
-        N4 = self.shape_n4(eta)
+        xi, eta = mfea.utils.components_from_grid(eta)
+        N1 = self.shape_n1(xi, eta)
+        N2 = self.shape_n2(xi, eta)
+        N3 = self.shape_n3(xi, eta)
+        N4 = self.shape_n4(xi, eta)
 
         return self._assemble_N([N1, N2, N3, N4])
     
@@ -42,6 +43,7 @@ class Linear2D(Element2D):
     def dN(self, eta: np.ndarray) -> np.ndarray:
         # Compute the value of shape function derivatives for the entire grid
         # with respect to the first coordinate direction
+        xi, eta = mfea.utils.components_from_grid(eta)
         dN1_1 = self.dN1_1(eta)
         dN2_1 = self.dN2_1(eta)
         dN3_1 = self.dN3_1(eta)
@@ -49,10 +51,10 @@ class Linear2D(Element2D):
 
         # Compute the value of shape function derivatives for the entire grid
         # with respect to the second coordinate direction
-        dN1_2 = self.dN1_2(eta)
-        dN2_2 = self.dN2_2(eta)
-        dN3_2 = self.dN3_2(eta)
-        dN4_2 = self.dN4_2(eta)
+        dN1_2 = self.dN1_2(xi)
+        dN2_2 = self.dN2_2(xi)
+        dN3_2 = self.dN3_2(xi)
+        dN4_2 = self.dN4_2(xi)
 
         return self._assemble_dN(sfuncs_1=[dN1_1, dN2_1, dN3_1, dN4_1], sfuncs_2=[dN1_2, dN2_2, dN3_2, dN4_2])
     
@@ -65,8 +67,8 @@ class Linear2D(Element2D):
         J_col = np.matmul(dN, q)
         J_mat = np.array(
             [
-                [J_col[:, :, 0, 0], J_col[:, :, 1, 0]], 
-                [J_col[:, :, 2, 0], J_col[:, :, 3, 0]]
+                [J_col[:, :, 0, 0], J_col[:, :, 2, 0]], 
+                [J_col[:, :, 1, 0], J_col[:, :, 3, 0]]
             ]
         )
 
@@ -75,7 +77,7 @@ class Linear2D(Element2D):
     
     def B(self, eta: np.ndarray) -> np.ndarray:
         # Compute...
-        dN = self.dN(eta)  #  derivative matrix 
+        dN = self.dN(eta)  #  derivative matrix
         J = self.J(dN)  # Full Jacobian
 
         # Assemble A matrix for mapping displacement gradients to strains in Voigt notation using numpy broadcasting for vectorized matrix multiplication
@@ -85,52 +87,52 @@ class Linear2D(Element2D):
         return np.matmul(A, np.matmul(np.linalg.inv(J), dN))
         
     @staticmethod
-    def shape_n1(eta: np.ndarray) -> float | np.ndarray:
-        return 0.25*(eta[0] - 1)*(eta[1] - 1)
+    def shape_n1(xi: np.ndarray, eta: np.ndarray) -> float | np.ndarray:
+        return 0.25*(xi - 1)*(eta - 1)
 
     @staticmethod
-    def shape_n2(eta: np.ndarray) -> float | np.ndarray:
-        return -0.25*(eta[0] + 1)*(eta[1] - 1)
+    def shape_n2(xi: np.ndarray, eta: np.ndarray) -> float | np.ndarray:
+        return -0.25*(xi + 1)*(eta - 1)
 
     @staticmethod
-    def shape_n3(eta: np.ndarray) -> float | np.ndarray:
-        return 0.25*(eta[0]+ 1)*(eta[1] + 1)
+    def shape_n3(xi: np.ndarray, eta: np.ndarray) -> float | np.ndarray:
+        return 0.25*(xi+ 1)*(eta + 1)
 
     @staticmethod
-    def shape_n4(eta: np.ndarray) -> float | np.ndarray:
-        return -0.25*(eta[0] - 1)*(eta[1] + 1)
+    def shape_n4(xi: np.ndarray, eta: np.ndarray) -> float | np.ndarray:
+        return -0.25*(xi - 1)*(eta + 1)
     
     @staticmethod
     def dN1_1(eta: np.ndarray) -> float | np.ndarray:
-        return 0.25*(eta[1] - 1)
+        return 0.25*(eta - 1)
     
     @staticmethod
-    def dN1_2(eta: np.ndarray) -> float | np.ndarray:
-        return 0.25*(eta[0] - 1)
+    def dN1_2(xi: np.ndarray) -> float | np.ndarray:
+        return 0.25*(xi - 1)
     
     @staticmethod
     def dN2_1(eta: np.ndarray) -> float | np.ndarray:
-        return -0.25*(eta[1] - 1)
+        return -0.25*(eta - 1)
     
     @staticmethod
-    def dN2_2(eta: np.ndarray) -> float | np.ndarray:
-        return -0.25*(eta[0] + 1)
+    def dN2_2(xi: np.ndarray) -> float | np.ndarray:
+        return -0.25*(xi + 1)
     
     @staticmethod
     def dN3_1(eta: np.ndarray) -> float | np.ndarray:
-        return 0.25*(eta[1] + 1)
+        return 0.25*(eta + 1)
     
     @staticmethod
-    def dN3_2(eta: np.ndarray) -> float | np.ndarray:
-        return 0.25*(eta[0] + 1)
+    def dN3_2(xi: np.ndarray) -> float | np.ndarray:
+        return 0.25*(xi + 1)
     
     @staticmethod
     def dN4_1(eta: np.ndarray) -> float | np.ndarray:
-        return -0.25*(eta[1] + 1)
+        return -0.25*(eta + 1)
     
     @staticmethod
-    def dN4_2(eta: np.ndarray) -> float | np.ndarray:
-        return -0.25*(eta[0] - 1)
+    def dN4_2(xi: np.ndarray) -> float | np.ndarray:
+        return -0.25*(xi - 1)
 
 @define
 class Quadratic2D(Element2D):

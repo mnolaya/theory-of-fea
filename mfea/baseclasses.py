@@ -121,7 +121,7 @@ class Element2D:
         N = self.N(eta)
 
         # Assemble q array using numpy broadcasting for vectorized matrix multiplication
-        q = mfea.utils.to_col_vec(self.x_element)
+        q = mfea.utils.to_col_vec(nodal_vec)
         q = mfea.utils.broadcast_ndarray_for_vectorziation(q, N.shape[0])
 
         # Interpolate: phi = N*q 

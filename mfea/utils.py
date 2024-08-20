@@ -6,7 +6,8 @@ def make_natural_grid(ngrid: int) -> np.ndarray:
     Create a ngrid x ngrid grid for shape functions in the natural coordinate system.
     '''
     dx = np.linspace(-1, 1, ngrid)
-    return np.array(np.meshgrid(dx, dx))
+    grid = np.array(np.meshgrid(dx, dx)).reshape((2, 1, ngrid, ngrid))
+    return shift_ndarray_for_vectorization(grid)
 
 def get_shape_func_by_num(N: np.ndarray, i: int) -> np.ndarray:
     '''
@@ -39,7 +40,9 @@ def shift_ndarray_for_vectorization(arr: np.ndarray) -> np.ndarray:
     Shift a numpy array of shape m x n x ngrid x ngrid to 
     ngrid x ngrid x m x n to facilitate vectorized matrix multiplication
     '''
-    return np.moveaxis(arr, [0, 1], [-2, -1])
+    arr = np.swapaxes(arr, 0, -2)
+    arr = np.swapaxes(arr, 1, -1)
+    return arr
 
 def broadcast_ndarray_for_vectorziation(arr: np.ndarray, ngrid: int) -> np.ndarray:
     '''
@@ -47,3 +50,6 @@ def broadcast_ndarray_for_vectorziation(arr: np.ndarray, ngrid: int) -> np.ndarr
     a grid of ngrid x ngrid points to facilitate vectorized matrix multiplication
     '''
     return np.zeros((ngrid, ngrid))[:, :, np.newaxis, np.newaxis] + arr
+
+def components_from_grid(grid: np.ndarray) -> tuple[np.ndarray]:
+    return grid[:, :, 0, 0], grid[:, :, 1, 0]

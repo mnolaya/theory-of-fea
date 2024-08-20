@@ -108,16 +108,25 @@ def plot_interpolated_element(
         interpolated_field: np.ndarray,
         ax: Axes | None = None,
         title: str = '', 
-        nticks: int = 5,
-        levels: int = 50,
+        levels: int = 10,
         coord_sys: str = 'element',
+        cmap: str = CONTOUR_CMAP,
+        continuous: bool = False,
+        clevels: int = 100,
     ) -> Axes:
+    plt_kw = {'levels': levels, 'cmap': cmap}
     if ax is None: ax = plt.gca()
     x, y = grid_coords[:, :, 0, 0], grid_coords[:, :, 1, 0]
-    c = ax.contourf(x, y, interpolated_field, levels=levels)
-    plt.colorbar(c, ticks=np.linspace(np.min(interpolated_field), np.max(interpolated_field), nticks))
+    if continuous: plt_kw.update({'levels': clevels})
+    # c = ax.scatter(x, y, c=interpolated_field, cmap='jet')
+    c = ax.contourf(x, y, interpolated_field, **plt_kw)
+    # plt.colorbar(c)
+
+    ticks = np.linspace(np.min(interpolated_field), np.max(interpolated_field), levels-1)
+    plt.colorbar(c, ticks=ticks, format='{x:.2e}')
     if title: ax.set_title(title)
     ax_labels = _get_ax_labels(coord_sys)
     ax.set_xlabel(ax_labels['x'])
     ax.set_ylabel(ax_labels['y'])
+    ax.tick_params(labelsize=8)
     return ax
