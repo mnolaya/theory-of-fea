@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import mfe.baseclasses
 import mfe.elem_lib
 import mfe.plot
+import mfe.utils
 
 ERR_TOL = 1e-6
 
@@ -315,8 +316,24 @@ if __name__ == '__main__':
     nodal_disp = ELEMENTS['quad']['q']
     mat = mfe.baseclasses.Material(E=2500, nu=0.35)
     D = mat.D_isotropic_plane_stress()
-    inspect_2D_element(elem, D, nodal_disp)
+    # inspect_2D_element(elem, D, nodal_disp)
     # test_2D_shape_functions(elem)
     # test_2D_jacobian(elem)
     # test_2D_shape_function_derivatives(elem)
     # test_2D_B_matrix(elem)
+    natural_grid = mfe.utils.make_natural_grid(50)
+    eta_1 = np.array([-0.577, 0.577]).reshape((2, 1))
+    eta_2 = np.array([-0.577, 0.577]).reshape((2, 1))
+    natural_grid = np.array(np.meshgrid(eta_1, eta_2)).reshape((2, 1, 2, 2))
+    natural_grid = mfe.utils.shift_ndarray_for_vectorization(natural_grid)
+    dN = elem.compute_dN(natural_grid)
+    J = elem.compute_J(dN)
+    detJ = np.linalg.det(J[:, :, 0:2, 0:2])
+    print(detJ)
+    print(natural_grid[0, 1])
+    print(natural_grid[1, 1])
+    # print(detJ[0, 0])
+    # print(detJ[-1, -1])
+    # print(detJ[5, 10])
+    # print()
+

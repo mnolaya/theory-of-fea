@@ -1,22 +1,28 @@
+from __future__ import annotations
 import itertools
+import enum
 
 import numpy as np
+import numpy.typing as npt
 from attrs import define
 
+from mfe.gauss import IntegrationPoints
 from mfe.baseclasses import Element2D, Node
 import mfe.utils
 
 @define
 class Linear2D(Element2D):
+
     @classmethod
-    def from_element_coords(cls, coords: list[np.ndarray]):
+    def from_element_coords(cls, coords: list[np.ndarray], num_pts: int = 2) -> Linear2D:
         nodes = [
             Node(element_id=1, element_coords=coords[0], natural_coords=np.array([-1, -1])),
             Node(element_id=2, element_coords=coords[1], natural_coords=np.array([1, -1])),
             Node(element_id=3, element_coords=coords[2], natural_coords=np.array([1, 1])),
             Node(element_id=4, element_coords=coords[3], natural_coords=np.array([-1, 1])),
         ]
-        return cls(nodes)
+        itg_pts = IntegrationPoints.make_ip_grid(num_pts, ndim=2)
+        return cls(nodes, integration_points=itg_pts)
     
     def get_shape_funcs(self) -> list[np.ndarray]:
         return [
@@ -124,7 +130,7 @@ class Linear2D(Element2D):
 class Quadratic2D(Element2D):
 
     @classmethod
-    def from_element_coords(cls, coords: list[np.ndarray]):
+    def from_element_coords(cls, coords: list[np.ndarray], num_pts: int = 3) -> Quadratic2D:
         nodes = [
             Node(element_id=1, element_coords=coords[0], natural_coords=np.array([-1, -1])),
             Node(element_id=2, element_coords=coords[1], natural_coords=np.array([0, -1])),
@@ -135,7 +141,9 @@ class Quadratic2D(Element2D):
             Node(element_id=7, element_coords=coords[6], natural_coords=np.array([-1, 1])),
             Node(element_id=8, element_coords=coords[7], natural_coords=np.array([-1, 0])),
         ]
-        return cls(nodes)
+        # if num_pts < 3: print('Warning!')
+        itg_pts = IntegrationPoints.make_ip_grid(num_pts, ndim=2)
+        return cls(nodes, integration_points=itg_pts)
     
     def get_shape_funcs(self) -> list[np.ndarray]:
         return [

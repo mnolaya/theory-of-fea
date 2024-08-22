@@ -44,12 +44,12 @@ def shift_ndarray_for_vectorization(arr: np.ndarray) -> np.ndarray:
     arr = np.swapaxes(arr, 1, -1)
     return arr
 
-def broadcast_ndarray_for_vectorziation(arr: np.ndarray, ngrid: int) -> np.ndarray:
+def broadcast_ndarray_for_vectorziation(arr: np.ndarray, grid_shape: tuple[int]) -> np.ndarray:
     '''
     Use numpy broadcasting to stack/duplicate a numpy array of shape m x n onto a
     a grid of ngrid x ngrid points to facilitate vectorized matrix multiplication
     '''
-    return np.zeros((ngrid, ngrid))[:, :, np.newaxis, np.newaxis] + arr
+    return np.zeros(grid_shape)[:, :, np.newaxis, np.newaxis] + arr
 
 def components_from_grid(grid: np.ndarray) -> tuple[np.ndarray]:
     return grid[:, :, 0, 0], grid[:, :, 1, 0]

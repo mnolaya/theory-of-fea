@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from attrs import define, field
 
 import mfe.utils
+from mfe.gauss import IntegrationPoints
 
 DEBUG_TOL = 1e-6
 A_2D = np.array([[1, 0, 0, 0], [0, 0, 0, 1], [0, 1, 1, 0]])
@@ -47,6 +48,7 @@ class Node:
 @define
 class Element2D:
     nodes: list[Node]
+    integration_points: IntegrationPoints
     nnodes: int = field(init=False)
     _debug: bool = False
 
@@ -100,7 +102,7 @@ class Element2D:
     def compute_J(self, dN: np.ndarray) -> np.ndarray:
         # Assemble q array using numpy broadcasting for vectorized matrix multiplication
         q = mfe.utils.to_col_vec(self.x_element)
-        q = mfe.utils.broadcast_ndarray_for_vectorziation(q, dN.shape[0])
+        # q = mfe.utils.broadcast_ndarray_for_vectorziation(q, dN.shape[0:2])
 
         # Compute the Jacobian matrix for the element
         J_col = np.matmul(dN, q)
@@ -114,16 +116,12 @@ class Element2D:
         # Assemble the full Jacobian matrix for the element used to compute the B matrix
         return self._assemble_J(J_mat)
     
-    def compute_B(self, natural_grid: np.ndarray) -> np.ndarray:
-        # Compute...
-        dN = self.compute_dN(natural_grid)  #  Shape function derivative matrix
-        J = self.compute_J(dN)  # Full Jacobian
-
+    def compute_B(self, dN: np.ndarray, J: np.ndarray) -> np.ndarray:
         # Assemble A matrix for mapping displacement gradients to strains in Voigt notation using numpy broadcasting for vectorized matrix multiplication
-        A = mfe.utils.broadcast_ndarray_for_vectorziation(A_2D, dN.shape[0])
+        # A = mfe.utils.broadcast_ndarray_for_vectorziation(A_2D, dN.shape[0:2])
 
         # Compute B matrix for the element
-        return np.matmul(A, np.matmul(np.linalg.inv(J), dN))
+        return np.matmul(A_2D, np.matmul(np.linalg.inv(J), dN))
     
     @staticmethod
     def _assemble_N(sfuncs: list[np.ndarray]) -> np.ndarray:
@@ -169,9 +167,62 @@ class Element2D:
 
         # Assemble q array using numpy broadcasting for vectorized matrix multiplication
         q = mfe.utils.to_col_vec(nodal_vec)
-        q = mfe.utils.broadcast_ndarray_for_vectorziation(q, N.shape[0])
+        # q = mfe.utils.broadcast_ndarray_for_vectorziation(q, N.shape[0:2])
 
         # Interpolate: phi = N*q 
         # where q is a vector of known quantities at the element nodes
         # and phi is the value of the quantity within the element
         return np.matmul(N, q)
+    
+    def compute_strain(self, nodal_disp: np.ndarray, natural_grid: np.ndarray | None = None) -> np.ndarray:
+        '''
+        Compute strains given nodal displacements and an array of coordinates 
+        in the natural coordinate system.
+        '''
+        if natural_grid is None: natural_grid = self.integration_points.natural_coords
+        # Compute B-matrix...
+        dN = self.compute_dN(natural_grid)  # Shape function derivative matrix
+        J = self.compute_J(dN)  # Full Jacobian matrix
+        B = self.compute_B(dN, J)  # B-matrix for computing strains from nodal displacements 
+
+        # Compute strains
+        q = mfe.utils.to_col_vec(nodal_disp)
+        # q = mfe.utils.broadcast_ndarray_for_vectorziation(q, natural_grid.shape[0:2])
+        return np.matmul(B, q)
+    
+    def compute_stress(self, eps: np.ndarray, D: np.ndarray) -> np.ndarray:
+        '''
+        Compute stresses from strains computed for the element.
+        sigma = [D][eps]
+        '''
+        return np.matmul(D, eps)
+    
+    def compute_strain_energy_density(self, sigma: np.ndarray, eps: np.ndarray) -> np.ndarray:
+        '''
+        Compute the strain energy for the element.
+        psi = 1/2*[sigma]'[eps]
+        '''
+        return 0.5*np.matmul(np.transpose(sigma, axes=(0, 1, 3, 2)), eps)
+    
+    def compute_K(self, D: np.ndarray, thickness: float = 1) -> np.ndarray:
+        '''
+        Compute the stiffness matrix (k) for the element.
+        psi = 1/2*[sigma]'[eps]
+        '''        
+        # Compute for the integration points...
+        dN = self.compute_dN(self.integration_points.natural_coords)
+        J = self.compute_J(dN)
+        B = self.compute_B(dN, J)
+
+        # Get the Jacobi-determinant for each of the grid points
+        J_det = np.linalg.det(J[:, :, 0:2, 0:2]).reshape(
+            (*self.integration_points.natural_coords.shape[0:2], 1, 1)
+        )
+
+        # Transpose B for matrix multiplication
+        B_transpose = np.transpose(B, axes=(0, 1, 3, 2))
+
+        # Compute stiffness matrix for each integration point, then return sum multiplied by the thickness
+        w_ij = self.integration_points.weights
+        k = w_ij*np.matmul(B_transpose, np.matmul(D, B))*J_det
+        return thickness*np.sum(k, axis=(0, 1))

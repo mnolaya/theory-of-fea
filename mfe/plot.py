@@ -11,26 +11,6 @@ import mfe.utils
 
 CONTOUR_CMAP = 'jet'
 
-# def interpolate_element_grid(elem: Element2D, nvals: int, domain: str) -> tuple[np.ndarray]:
-#     '''
-#     Get coordinates within an element in terms of the natural or local element coordinate system.
-#     '''
-#     nodal_vec = {'element': elem.x_element, 'natural': elem.x_natural}
-#     return elem.interpolate(nodal_vec=nodal_vec[domain.lower()], nvals=nvals)
-
-# def _compute_shape_func(shape_func: Callable, eta_grid: tuple[np.ndarray]):
-#     '''
-#     Compute the value of a shape function for a collection of grid points in the natural coordinate system.
-#     '''
-#     val = []
-#     for i in range(eta_grid[0].shape[0]):
-#         row = []
-#         for j in range(eta_grid[1].shape[0]):
-#             e1, e2 = eta_grid[0][i, j], eta_grid[1][i][j]
-#             row.append(shape_func(e1, e2))
-#         val.append(np.array(row))
-#     return np.array(val)
-
 def _get_ax_labels(domain: str) -> dict[str, str]:
     '''
     Get the x- and y-axes labels for plotting field quantities as a function of element position.
@@ -123,7 +103,7 @@ def plot_interpolated_element(
     if method.lower() == 'contour': 
         c = ax.contourf(x, y, interpolated_field, **plt_kw)
     elif method.lower() == 'scatter':
-        c = ax.scatter(x, y, c=interpolated_field, cmap='jet')
+        c = ax.scatter(x, y, c=interpolated_field, cmap=cmap)
     ticks = np.linspace(np.min(interpolated_field), np.max(interpolated_field), levels+1)
     cbar = plt.colorbar(c, ticks=ticks, format='{x:.2e}')
     cbar.ax.tick_params(labelsize=8)
