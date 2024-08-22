@@ -148,17 +148,7 @@ def plot_element_stress_strain(
     ncols = 3
     figs = {f: plt.subplots(ncols=ncols, figsize=(ncols*5, 5)) for f in ['stress', 'strain']}
     components = {0: '11', 1: '22', 2: '12'}
-    for i in range(3):
-        # Plot stress component
-        fig, axes = figs['stress']
-        plt.figure(fig)
-        plot_interpolated_element(
-            grid_coords, stress[:, :, i, 0],
-            ax=axes[i],
-            title=fr'$\sigma_{{{components[i]}}}$',
-            **kw
-        )
-
+    for i in components.keys():
         # Plot strain component
         fig, axes = figs['strain']
         plt.figure(fig)
@@ -168,9 +158,43 @@ def plot_element_stress_strain(
             title=fr'$\varepsilon_{{{components[i]}}}$',
             **kw
         )
-    figs['stress'][0].tight_layout()
+        # Plot stress component
+        fig, axes = figs['stress']
+        plt.figure(fig)
+        plot_interpolated_element(
+            grid_coords, stress[:, :, i, 0],
+            ax=axes[i],
+            title=fr'$\sigma_{{{components[i]}}}$',
+            **kw
+        )
     figs['strain'][0].tight_layout()
+    figs['stress'][0].tight_layout()
     return figs
+
+def plot_element_displacement(
+    u: np.ndarray,
+    grid_coords: np.ndarray,
+    coord_sys: str = 'element',
+    method: str = 'contour',
+    **kwargs
+) -> tuple[Figure, np.ndarray[Axes]]:
+    kw = {'coord_sys': coord_sys, 'levels': 10, 'cmap': 'jet', 'continuous': True, 'method': method}
+    kw.update(**kwargs)
+
+    # Plot all results
+    ncols = 2
+    fig, axes = plt.subplots(ncols=ncols, figsize=(ncols*5, 5))
+    components = {0: '1', 1: '2'}
+    for i in components.keys():
+        # Plot stress component
+        plot_interpolated_element(
+            grid_coords, u[:, :, i, 0],
+            ax=axes[i],
+            title=fr'u$_{{{components[i]}}}$',
+            **kw
+        )
+    fig.tight_layout()
+    return fig, axes
 
 def plot_element_shape_functions(
     N: np.ndarray,
@@ -183,14 +207,16 @@ def plot_element_shape_functions(
     kw.update(**kwargs)
 
     # Plot all results
-    ncols = int(np.ceil(N.shape[-1]/2))
-    if ncols <= 4:
+    nfuncs = int(np.ceil(N.shape[-1]/2))
+    if nfuncs <= 4:
+        ncols = nfuncs
         nrows = 1
     else:
+        ncols = int(np.ceil(nfuncs/2))
         nrows = 2
     fig, axes = plt.subplots(ncols=ncols, nrows=nrows, figsize=(ncols*5, nrows*5))
     try:
-        axes = list(itertools.chain.from_iterable(axes))
+        axes = list(itertools.chain.from_iterable(axes.tolist()))
     except TypeError:
         pass
     for i in range(int(N.shape[-1]/2)):
@@ -228,7 +254,7 @@ def plot_element_Jacobian(
             grid_coords, 
             J_i,
             ax=ax,
-            title=fr'J$_{{{i+1}}}$',
+            title=fr'J$_{{{comps[i][0]+1}{comps[i][1]+1}}}$',
             **kw
         )
     fig.tight_layout()

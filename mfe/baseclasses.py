@@ -9,6 +9,7 @@ from attrs import define, field
 import mfe.utils
 
 DEBUG_TOL = 1e-6
+A_2D = np.array([[1, 0, 0, 0], [0, 0, 0, 1], [0, 1, 1, 0]])
 
 @define
 class Material:
@@ -55,6 +56,10 @@ class Element2D:
     @abstractmethod
     def get_shape_funcs(self) -> list:
         ...
+    
+    @abstractmethod
+    def get_shape_func_derivatives(self) -> list:
+        ...
 
     @abstractmethod
     def compute_N(self, natural_grid: np.ndarray) -> np.ndarray:
@@ -91,6 +96,34 @@ class Element2D:
         Shape: (ngrid, ngrid, ndof, 2*nnodes) where nnodes are the number of element nodes.
         '''
         ...
+
+    def compute_J(self, dN: np.ndarray) -> np.ndarray:
+        # Assemble q array using numpy broadcasting for vectorized matrix multiplication
+        q = mfe.utils.to_col_vec(self.x_element)
+        q = mfe.utils.broadcast_ndarray_for_vectorziation(q, dN.shape[0])
+
+        # Compute the Jacobian matrix for the element
+        J_col = np.matmul(dN, q)
+        J_mat = np.array(
+            [
+                [J_col[:, :, 0, 0], J_col[:, :, 2, 0]], 
+                [J_col[:, :, 1, 0], J_col[:, :, 3, 0]]
+            ]
+        )
+
+        # Assemble the full Jacobian matrix for the element used to compute the B matrix
+        return self._assemble_J(J_mat)
+    
+    def compute_B(self, natural_grid: np.ndarray) -> np.ndarray:
+        # Compute...
+        dN = self.compute_dN(natural_grid)  #  Shape function derivative matrix
+        J = self.compute_J(dN)  # Full Jacobian
+
+        # Assemble A matrix for mapping displacement gradients to strains in Voigt notation using numpy broadcasting for vectorized matrix multiplication
+        A = mfe.utils.broadcast_ndarray_for_vectorziation(A_2D, dN.shape[0])
+
+        # Compute B matrix for the element
+        return np.matmul(A, np.matmul(np.linalg.inv(J), dN))
     
     @staticmethod
     def _assemble_N(sfuncs: list[np.ndarray]) -> np.ndarray:
