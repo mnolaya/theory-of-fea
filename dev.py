@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import mfe.utils
-from mfe.baseclasses import Material
+from mfe.baseclasses import Material, IntegrationPoints
 from mfe.elem_lib import Linear2D, Quadratic2D
 from mfe.plot import plot_shape_function, plot_element_field, plot_interpolated_element
 
@@ -183,6 +183,73 @@ def N_test() -> None:
     # ax.contourf(*grid, dN[0, 4, :, :])
     # plt.show()
 
+def surf_traction_order1_(x: float, a: float, b: float) -> float:
+    return a*x + b
+
+def surface_traction(elem: Linear2D, traction_face: str, order: int, func_const: list[tuple[float]], thickness: float) -> None:
+    surf_ip_dict = {
+        '+x': {
+            'J_components':  [(1, 0, ), (0, 1, )],
+            'eta_component': 0,
+            'eta_val': 1,
+        },
+        '-x': {
+            'J_components':  [(1, 0, ), (0, 1, )],
+            'eta_component': 0,
+            'eta_val': -1,
+        },
+        '+y': {
+            'J_components': [(0, 0, ), (0, 1, )],
+            'eta_component': 1,
+            'eta_val': 1,
+        },
+        '-y': {
+            'J_components': [(0, 0, ), (0, 1, )],
+            'eta_component': 1,
+            'eta_val': -1,
+        },
+    }
+    surf_func_dict = {
+        1: surf_traction_order1_
+    }
+    f_surf = [surf_func_dict[order], surf_func_dict[order]]
+
+    J_components = surf_ip_dict[traction_face]['J_components']
+    eta_component = surf_ip_dict[traction_face]['eta_component']
+    eta_val = surf_ip_dict[traction_face]['eta_val']
+
+    surf_ips = IntegrationPoints(elem.integration_points.natural_coords.copy(), elem.integration_points.weights.copy())
+    surf_ips.natural_coords[:, :, eta_component, :] = eta_val
+
+    f_surf = np.array([
+        surf_func_dict[order](surf_ips.natural_coords[:, :, 0, :], *func_const[0]),
+        surf_func_dict[order](surf_ips.natural_coords[:, :, 1, :], *func_const[1])
+    ]).reshape((2, 1, *surf_ips.natural_coords.shape[0:2]))
+    f_surf = mfe.utils.shift_ndarray_for_vectorization(f_surf)
+
+    # natural_grid = mfe.utils.make_natural_grid()
+    N = elem.compute_N(surf_ips.natural_coords)
+    dN = elem.compute_dN(surf_ips.natural_coords)
+    J = elem.compute_J(dN)
+    J_det_surf = (J[:, :, *J_components[0]]**2 + J[:, :, *J_components[1]]**2)**0.5
+    J_det_surf = J_det_surf.reshape((*surf_ips.natural_coords.shape[0:2], 1, 1))
+
+    w_ij = surf_ips.weights
+    N_transpose = np.transpose(N, axes=(0, 1, 3, 2))
+
+    f = w_ij*J_det_surf*np.matmul(N_transpose, f_surf)
+    return thickness*np.sum(f, axis=(0, 1))
+    # return thickness*np.sum(test, axis=(0, 1))
+
 
 if __name__ == '__main__':
-    B_test()
+    elem = Linear2D.from_element_coords(
+        [
+            np.array([0, 0]), 
+            np.array([12, -1]), 
+            np.array([15, 8]), 
+            np.array([-1, 10])
+        ], num_pts=2
+    )
+    fs = surface_traction(elem, traction_face='+x', order=1, func_const=[(3, 4, ), (5, 1, )], thickness=1.3)
+    print(fs)

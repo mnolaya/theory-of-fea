@@ -1,7 +1,7 @@
 import numpy as np
 import numpy.typing as npt
 
-def make_natural_grid(ngrid: int) -> np.ndarray:
+def make_natural_grid(ngrid: int = 50) -> np.ndarray:
     '''
     Create a ngrid x ngrid grid for shape functions in the natural coordinate system.
     '''
