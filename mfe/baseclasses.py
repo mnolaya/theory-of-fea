@@ -51,6 +51,7 @@ class Element2D:
     integration_points: IntegrationPoints
     nnodes: int = field(init=False)
     _debug: bool = False
+    _ndim: int = 2
 
     def __attrs_post_init__(self):
         self.nnodes = len(self.nodes)
