@@ -221,9 +221,12 @@ def surface_traction(elem: Linear2D, traction_face: str, order: int, func_const:
     surf_ips = IntegrationPoints(elem.integration_points.natural_coords.copy(), elem.integration_points.weights.copy())
     surf_ips.natural_coords[:, :, eta_component, :] = eta_val
 
+    N = elem.compute_N(surf_ips.natural_coords)
+    x_coords = elem.interpolate(elem.x_element, surf_ips.natural_coords)
+    
     f_surf = np.array([
-        surf_func_dict[order](surf_ips.natural_coords[:, :, 0, :], *func_const[0]),
-        surf_func_dict[order](surf_ips.natural_coords[:, :, 1, :], *func_const[1])
+        surf_func_dict[order](x_coords[:, :, 0, :], *func_const[0]),
+        surf_func_dict[order](x_coords[:, :, 1, :], *func_const[1])
     ]).reshape((2, 1, *surf_ips.natural_coords.shape[0:2]))
     f_surf = mfe.utils.shift_ndarray_for_vectorization(f_surf)
 
@@ -249,7 +252,7 @@ if __name__ == '__main__':
             np.array([12, -1]), 
             np.array([15, 8]), 
             np.array([-1, 10])
-        ], num_pts=2
+        ], num_pts=3
     )
     fs = surface_traction(elem, traction_face='+x', order=1, func_const=[(3, 4, ), (5, 1, )], thickness=1.3)
     print(fs)
