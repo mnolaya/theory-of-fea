@@ -32,9 +32,17 @@ def get_shape_func_by_num(N: np.ndarray, i: int) -> np.ndarray:
 #     return col_vec[:, np.newaxis, np.newaxis] + np.zeros(shape)
 
 def to_col_vec(arr: npt.ArrayLike) -> np.ndarray:
-    arr = np.array(arr)
-    return arr.reshape((arr.shape[0], 1))
-
+    if not isinstance(arr, np.ndarray): arr = np.array(arr)
+    if len(arr.shape) == 1:
+        # Convert 1D to column vector [n x 1]
+        return arr.reshape((arr.shape[0], 1))
+    elif len(arr.shape) == 2 and arr.shape[1] == 1:
+        # Already in correct form [n x 1]
+        return arr
+    elif len(arr.shape) == 3:
+        # Reshape to grid of column vectors [n x 1 x grid_size_1 x grid_size_2]
+        return arr.reshape((arr.shape[0], 1, *arr.shape[-2:]))
+        
 def shift_ndarray_for_vectorization(arr: np.ndarray) -> np.ndarray:
     '''
     Shift a numpy array of shape m x n x ngrid x ngrid to 
