@@ -229,7 +229,7 @@ def test_2D_B_matrix(elem: mfe.baseclasses.Element2D, ngrid: int = 50) -> None:
 def inspect_2D_element(
         elem: mfe.baseclasses.Element2D,
         D: np.ndarray,
-        nodal_vec: np.ndarray,
+        q: np.ndarray,
         ngrid: int = 50,
     ) -> dict[str, dict]:
     # Create a grid of coordinates in the natural coordinate system
@@ -242,7 +242,7 @@ def inspect_2D_element(
     N = elem.compute_N(natural_grid)
 
     # Compute displacements
-    u = elem.interpolate(nodal_vec, natural_grid)
+    u = elem.interpolate(q, natural_grid)
 
     # Compute shape function derivatives and Jacobian
     dN = elem.compute_dN(natural_grid)
@@ -252,7 +252,7 @@ def inspect_2D_element(
     B = elem.compute_B(natural_grid)
 
     # Compute the strains
-    q = mfe.utils.to_col_vec(nodal_vec)
+    q = mfe.utils.to_col_vec(q)
     q = mfe.utils.broadcast_ndarray_for_vectorziation(q, ngrid)
     eps = np.matmul(B, q)
 

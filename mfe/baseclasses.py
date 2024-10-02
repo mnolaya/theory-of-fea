@@ -205,7 +205,7 @@ class Element2D:
         '''
         return 0.5*np.matmul(np.transpose(sigma, axes=(0, 1, 3, 2)), eps)
     
-    def compute_K(self, D: np.ndarray, thickness: float = 1) -> np.ndarray:
+    def compute_k(self, D: np.ndarray, thickness: float = 1) -> np.ndarray:
         '''
         Compute the stiffness matrix (k) for the element.
         psi = 1/2*[sigma]'[eps]
@@ -227,3 +227,36 @@ class Element2D:
         w_ij = self.integration_points.weights
         k = w_ij*np.matmul(B_transpose, np.matmul(D, B))*J_det
         return thickness*np.sum(k, axis=(0, 1))
+    
+    def compute_strain(self, B: np.ndarray, q: np.ndarray) -> np.ndarray:
+        '''
+        Compute the strains for the element.
+        '''
+        # Convert q to column vector if not already in correct form
+        q = mfe.utils.to_col_vec(q)
+
+        # Check for vectorization
+        if len(B.shape) == 4:
+            if B.shape[2] != 4 or B.shape[3] != 2*self.nnodes: 
+                print(f'error: B matrix is of shape {B.shape}. for vectorization, it must be of shape (n, m, 3, 2*nnodes)')
+                exit()
+            q = mfe.utils.broadcast_ndarray_for_vectorziation(q, B.shape[0:2])
+        elif B.shape != (4, 2*self.nnodes):
+            print(f'error: B matrix is of shape {B.shape}, but must be of shape (3, 2*nnodes)')
+        return np.matmul(B, q)
+    
+    def compute_strain(self, D: np.ndarray, eps: np.ndarray) -> np.ndarray:
+        '''
+        Compute the stresses for the element.
+        '''
+        # Check for vectorization
+        if len(eps.shape) == 4:
+            if eps.shape[2] != 3 or eps.shape[3] != 1: 
+                print(f'error: strain matrix is of shape {eps.shape}. for vectorization, it must be of shape (n, m, 3, 1)')
+                exit()
+            D = mfe.utils.broadcast_ndarray_for_vectorziation(D, eps.shape[0:2])
+        elif eps.shape != (3, 1):
+            print(f'error: strain matrix is of shape {eps.shape}, but must be of shape (3, 1)')
+        return np.matmul(D, eps)
+
+
