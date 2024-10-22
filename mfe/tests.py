@@ -110,7 +110,7 @@ def test_2D_jacobian(elem: mfe.baseclasses.Element2D, ngrid: int = 50) -> None:
     check_name = 'full J matrix equal to the identity matrix when assembled from nodal coordinates in the natural coordinate system'
     _print_checking(check_name)
     q = mfe.utils.to_col_vec(elem.x_natural)
-    q = mfe.utils.broadcast_ndarray_for_vectorziation(q, ngrid)
+    # q = mfe.utils.broadcast_ndarray_for_vectorziation(q, ngrid)
     J_col = np.matmul(dN, q)
     J_mat = np.array(
         [
@@ -188,7 +188,9 @@ def test_2D_B_matrix(elem: mfe.baseclasses.Element2D, ngrid: int = 50) -> None:
     natural_grid = mfe.utils.make_natural_grid(ngrid)  
 
     # Compute the shape function derivative matrix dN and full Jacobian J
-    B = elem.compute_B(natural_grid)
+    dN = elem.compute_dN(natural_grid)
+    J = elem.compute_J(dN)
+    B = elem.compute_B(dN, J)
 
     # Verify shape
     check_name = 'shape of B matrix'
@@ -208,8 +210,6 @@ def test_2D_B_matrix(elem: mfe.baseclasses.Element2D, ngrid: int = 50) -> None:
     # Verify components of B vs. 'hand-calculated' matrix math
     check_name = 'B matrix computation'
     _print_checking(check_name)
-    dN = elem.compute_dN(natural_grid)
-    J = elem.compute_J(dN)
     J_inv = np.linalg.inv(J)
     # Explicilty compute individual rows of B...
     r1 = np.array([J_inv[:, :, 0, 0]*dN[:, :, 0, i] + J_inv[:, :, 0, 1]*dN[:, :, 1, i] for i in np.arange(nnodes*2)])
@@ -236,28 +236,28 @@ def inspect_2D_element(
     natural_grid = mfe.utils.make_natural_grid(ngrid)
 
     # Interpolate to get the grid in terms of the local element coordinate system
-    x_grid = elem.interpolate(elem.x_element, natural_grid)
+    x_grid = elem.map_to_element(elem.x_element, natural_grid)
 
     # Compute shape function matrix N
     N = elem.compute_N(natural_grid)
 
     # Compute displacements
-    u = elem.interpolate(q, natural_grid)
+    u = elem.map_to_element(q, natural_grid)
 
     # Compute shape function derivatives and Jacobian
     dN = elem.compute_dN(natural_grid)
     J = elem.compute_J(dN)
 
     # Compute the B-matrix
-    B = elem.compute_B(natural_grid)
+    B = elem.compute_B(dN, J)
 
     # Compute the strains
     q = mfe.utils.to_col_vec(q)
-    q = mfe.utils.broadcast_ndarray_for_vectorziation(q, ngrid)
+    # q = mfe.utils.broadcast_ndarray_for_vectorziation(q, ngrid)
     eps = np.matmul(B, q)
 
     # Compute the stress
-    D = mfe.utils.broadcast_ndarray_for_vectorziation(D, ngrid)
+    # D = mfe.utils.broadcast_ndarray_for_vectorziation(D, ngrid)
     sigma = np.matmul(D, eps)
 
     # Plot all results
