@@ -103,31 +103,44 @@ class SurfaceTraction:
         self._setup_dict = SURFACE_TRACTION_SETUP[self.face].copy()
 
     @classmethod
-    def generate_on_element(cls, elem: mfe.baseclasses.Element2D, face: str, constants: np.ndarray, thickness: float = 1) -> SurfaceTraction:
+    def generate(cls, elem: mfe.baseclasses.Element2D, face: str, constants: np.ndarray, thickness: float = 1) -> SurfaceTraction:
         '''
         Construct a SurfaceTraction instance for an element, representing a surface traction applied to an element face.
         '''
         return cls(face, constants, _generate_surf_traction_itg_pts(elem, face), thickness)
 
-    def compute_J_det_surf(self, elem: mfe.baseclasses.Element2D, natural_coords: np.ndarray) -> np.ndarray:
+    def compute_fs(self, elem_coords: np.ndarray) -> np.ndarray:
+        '''
+        Compute the surface traction forces at the integration points in the local element coordinate system.
+        '''
+        grid_shape = elem_coords.shape[0:2]
+        f_surf = np.array([
+            f(elem_coords[:, :, i, :], c)
+            for i, (f, c) in enumerate(zip(self.funcs, self.constants))
+        ]).reshape((2, 1, *grid_shape))
+        return mfe.utils.shift_ndarray_for_vectorization(f_surf)
+
+    def compute_J_det_surf(self, J: np.ndarray, grid_shape: np.ndarray) -> np.ndarray:
         '''
         Compute the Jacobi-determinant along a surface subject to traction.
         '''
-        # Compute the Jacobian
-        dN = elem.compute_dN(natural_coords)
-        J = elem.compute_J(dN)
+        # # Compute the Jacobian
+        # dN = elem.compute_dN(natural_coords)
+        # J = elem.compute_J(dN)
 
         # Get the Jacobian components used for computation
         J1, J2 = J[:, :, *self._setup_dict['J_components'][0]], J[:, :, *self._setup_dict['J_components'][1]]
 
         # Compute the Jacobi-determinant along the surface
         J_det_surf = (J1**2 + J2**2)**0.5
-        return J_det_surf.reshape((*natural_coords.shape[0:2], 1, 1))
+        return J_det_surf.reshape((*grid_shape[0:2], 1, 1))
     
     def compute_force_vector(self, elem: mfe.baseclasses.Element2D) -> np.ndarray:
         '''
         Compute the force vector due to the surface traction.
         '''
+        grid_shape = self.integration_points.natural_coords
+
         # Compute the shape functions for the grid of integration points along the surface
         N = elem.compute_N(self.integration_points.natural_coords)
         N_transpose = np.transpose(N, axes=(0, 1, 3, 2))
@@ -136,15 +149,18 @@ class SurfaceTraction:
         self.integration_points.element_coords = elem.interpolate(elem.x_element, self.integration_points.natural_coords)
 
         # Compute the surface traction forces at the integration points
-        grid_shape = self.integration_points.natural_coords.shape[0:2]
-        f_surf = np.array([
-            f(self.integration_points.element_coords[:, :, i, :], c)
-            for i, (f, c) in enumerate(zip(self.funcs, self.constants))
-        ]).reshape((2, 1, *grid_shape))
-        f_surf = mfe.utils.shift_ndarray_for_vectorization(f_surf)
+        f_surf = self.compute_fs(self.integration_points.element_coords)
+        # grid_shape = self.integration_points.natural_coords.shape[0:2]
+        # f_surf = np.array([
+        #     f(self.integration_points.element_coords[:, :, i, :], c)
+        #     for i, (f, c) in enumerate(zip(self.funcs, self.constants))
+        # ]).reshape((2, 1, *grid_shape))
+        # f_surf = mfe.utils.shift_ndarray_for_vectorization(f_surf)
 
         # Compute the Jacobi-determinant along the surface
-        J_det_surf = self.compute_J_det_surf(elem, self.integration_points.natural_coords)
+        dN = elem.compute_dN(self.integration_points.natural_coords)
+        J = elem.compute_J(dN)
+        J_det_surf = self.compute_J_det_surf(J, grid_shape)
 
         # Compute the force vector for each integration point, then return the sum multiplied by the thickness
         w_ij = self.integration_points.weights
@@ -167,7 +183,7 @@ if __name__ == '__main__':
             np.array([-1, 10])
         ], num_pts=2
     )
-    bc = SurfaceTraction.generate_on_element(elem=elem, face='+x', constants=[np.array([4, 3]), np.array([5, 1])], thickness=1.3)
+    bc = SurfaceTraction.generate(elem=elem, face='+x', constants=[np.array([4, 3]), np.array([5, 1])], thickness=1.3)
     f_s = bc.compute_force_vector(elem)
     print(f_s)
 
