@@ -61,6 +61,8 @@ def plotter(func: Callable, xdata: np.ndarray) -> None:
         # Line plot
         fig, ax = plt.subplots()
         ax.plot(xdata, ydata, label='y')
+        ax.set_xlabel(r'$x$')
+        ax.set_ylabel(r'$y$')
         ax.legend()
         fig.tight_layout()
     elif len(ydata.shape) == 3:
@@ -68,6 +70,8 @@ def plotter(func: Callable, xdata: np.ndarray) -> None:
         fig, ax = plt.subplots()
         for i in range(ydata.shape[0]):
             ax.plot(xdata, ydata[i, ...], label=f'y{i+1}')
+            ax.set_xlabel(r'$x$')
+            ax.set_ylabel(r'$y$')
             ax.legend()
             fig.tight_layout()
     elif len(ydata.shape) == 4:
@@ -75,6 +79,8 @@ def plotter(func: Callable, xdata: np.ndarray) -> None:
         for i in range(ydata.shape[2]):
             fig, ax = plt.subplots()
             ax.set_title(f'y{i+1}')
+            ax.set_xlabel(r'$x_{1}$')
+            ax.set_ylabel(r'$x_{2}$')
             c = ax.contourf(xdata[0, 0, ...], xdata[1, 0, ...], ydata[..., i, 0])
             plt.colorbar(c)
             fig.tight_layout()
