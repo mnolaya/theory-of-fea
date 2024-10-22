@@ -240,3 +240,38 @@ def plot_element_Jacobian(
     fig.tight_layout()
     return fig, axes
     
+def plot_element_stiffness(k: np.ndarray) -> tuple[Figure, Axes]:
+    fig, ax = plt.subplots()
+    c = ax.imshow(k, cmap='coolwarm')
+    cbar = fig.colorbar(c, format='{x:.2e}')
+    cbar.ax.tick_params(labelsize=8)
+    ax.set_xticks(np.arange(0, k.shape[0], 2))
+    ax.set_ylabel('$i$-index')
+    ax.set_yticks(np.arange(0, k.shape[1], 2))
+    ax.set_xlabel('$j$-index')
+    ax.set_title(r'Element stiffness matrix $\mathbf{k}$')
+    return fig, ax
+    
+def plot_element_strain_energy_density(
+    psi: np.ndarray,
+    grid_coords: np.ndarray,
+    method: str = 'scatter',
+    coord_sys: str = 'element',
+    **kwargs
+) -> tuple[Figure, np.ndarray[Axes]]:
+    kw = {'coord_sys': coord_sys, 'levels': 10, 'cmap': 'jet', 'continuous': True, 'method': method}
+    kw.update(**kwargs)
+
+    # Plot all results
+    fig, ax = plt.subplots()
+    plot_interpolated_element(
+        grid_coords, 
+        psi, 
+        ax, 
+        coord_sys='element', 
+        method='scatter', 
+        title=r'Element strain energy density $\psi$', 
+        **kwargs,
+    )
+    fig.tight_layout()
+    return fig, ax

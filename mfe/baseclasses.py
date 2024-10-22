@@ -174,21 +174,21 @@ class Element2D:
         # and phi is the value of the quantity within the element
         return np.matmul(N, q)
     
-    def compute_strain(self, nodal_disp: np.ndarray, natural_grid: np.ndarray | None = None) -> np.ndarray:
-        '''
-        Compute strains given nodal displacements and an array of coordinates 
-        in the natural coordinate system.
-        '''
-        if natural_grid is None: natural_grid = self.integration_points.natural_coords
-        # Compute B-matrix...
-        dN = self.compute_dN(natural_grid)  # Shape function derivative matrix
-        J = self.compute_J(dN)  # Full Jacobian matrix
-        B = self.compute_B(dN, J)  # B-matrix for computing strains from nodal displacements 
+    # def compute_strain(self, nodal_disp: np.ndarray, natural_grid: np.ndarray | None = None) -> np.ndarray:
+    #     '''
+    #     Compute strains given nodal displacements and an array of coordinates 
+    #     in the natural coordinate system.
+    #     '''
+    #     if natural_grid is None: natural_grid = self.integration_points.natural_coords
+    #     # Compute B-matrix...
+    #     dN = self.compute_dN(natural_grid)  # Shape function derivative matrix
+    #     J = self.compute_J(dN)  # Full Jacobian matrix
+    #     B = self.compute_B(dN, J)  # B-matrix for computing strains from nodal displacements 
 
-        # Compute strains
-        q = mfe.utils.to_col_vec(nodal_disp)
-        # q = mfe.utils.broadcast_ndarray_for_vectorziation(q, natural_grid.shape[0:2])
-        return np.matmul(B, q)
+    #     # Compute strains
+    #     q = mfe.utils.to_col_vec(nodal_disp)
+    #     # q = mfe.utils.broadcast_ndarray_for_vectorziation(q, natural_grid.shape[0:2])
+    #     return np.matmul(B, q)
     
     def compute_stress(self, eps: np.ndarray, D: np.ndarray) -> np.ndarray:
         '''
@@ -236,7 +236,7 @@ class Element2D:
 
         # Check for vectorization
         if len(B.shape) == 4:
-            if B.shape[2] != 4 or B.shape[3] != 2*self.nnodes: 
+            if B.shape[2] != 3 or B.shape[3] != 2*self.nnodes: 
                 print(f'error: B matrix is of shape {B.shape}. for vectorization, it must be of shape (n, m, 3, 2*nnodes)')
                 exit()
             q = mfe.utils.broadcast_ndarray_for_vectorziation(q, B.shape[0:2])
@@ -244,7 +244,7 @@ class Element2D:
             print(f'error: B matrix is of shape {B.shape}, but must be of shape (3, 2*nnodes)')
         return np.matmul(B, q)
     
-    def compute_strain(self, D: np.ndarray, eps: np.ndarray) -> np.ndarray:
+    def compute_stress(self, D: np.ndarray, eps: np.ndarray) -> np.ndarray:
         '''
         Compute the stresses for the element.
         '''
