@@ -162,15 +162,14 @@ class Element2D:
     def x_element(self) -> np.ndarray:
         return np.array(list(itertools.chain.from_iterable([node.element_coords for node in self.nodes])))
     
-    def interpolate(self, nodal_vec: np.ndarray, natural_grid: np.ndarray) -> np.ndarray:
+    def map_to_element(self, nodal_vec: np.ndarray, natural_grid: np.ndarray) -> np.ndarray:
         # Compute N for the array of coordinates
         N = self.compute_N(natural_grid)
 
         # Assemble q array using numpy broadcasting for vectorized matrix multiplication
         q = mfe.utils.to_col_vec(nodal_vec)
-        # q = mfe.utils.broadcast_ndarray_for_vectorziation(q, N.shape[0:2])
 
-        # Interpolate: phi = N*q 
+        # Map quantity from nodes to element using shape functions: phi = N*q 
         # where q is a vector of known quantities at the element nodes
         # and phi is the value of the quantity within the element
         return np.matmul(N, q)
