@@ -35,7 +35,7 @@ SURFACE_TRACTION_SETUP = {
 def _build_polynomial(x: np.ndarray, constants: np.ndarray) -> np.ndarray:
     return np.sum(np.array([constants[i]*x**i for i in range(len(constants))]), axis=0)
 
-def _generate_surf_traction_itg_pts(elem: mfe.baseclasses.Element2D, face: str) -> mfe.gauss.IntegrationPoints:
+def _generate_surf_traction_itg_pts(elem: mfe.baseclasses.Element2D, face: str, order: int) -> mfe.gauss.IntegrationPoints:
     '''
     Generate integration points used to compute a surface traction integral on an element 
     '''
@@ -46,44 +46,21 @@ def _generate_surf_traction_itg_pts(elem: mfe.baseclasses.Element2D, face: str) 
     eta_val = SURFACE_TRACTION_SETUP[face]['eta_val']
 
     # Create a copy of the integration points on the element, then set the appropriate component to a constant value
+    min_pts = (2*order - 1)
+    itg_pts = mfe.gauss.IntegrationPoints.make_ip_grid(min_pts)
+    # nat_coords = itg_pts.natural_coords.copy()
     nat_coords = elem.integration_points.natural_coords.copy()
     nat_coords[:, :, eta_component, :] = eta_val
 
     # Retain only the unique integration point coordinates (i.e., remove duplicate coordinates when one coordinate is held constant)
     npts = nat_coords.shape[0]
-    nat_coords, idx = np.unique(nat_coords, axis=1, return_index=True)
+    nat_coords, _ = np.unique(nat_coords, axis=1, return_index=True)
     w = np.array(mfe.gauss.GAUSS_POINTS[npts]['weights']).reshape((npts, 1, 1, 1))
-    # w = np.prod(w, axis=0, keepdims=True)
-    # w = elem.integration_points.weights
-    # print(w.shape)
-    # exit()
-    # w = np.prod(elem.integration_points.weights[:, idx], axis=1, keepdims=True)
-    w2 = np.prod(elem.integration_points.weights, axis=0, keepdims=True)
-    # print(w.shape)
-    # # print(w == w2)
-    # print(nat_coords.shape)
-    # # print(nat_coords[2, 0])
-    # print(elem.integration_points.natural_coords.shape)
-    # print(elem.integration_points.weights.shape)
-    # # exit()
-    # print(nat_coords.shape)
-    # print(w.shape)
-    # exit()
-    
-    # Create IntegrationPoints instance for the surface
-    # itg_pts = mfe.gauss.IntegrationPoints(nat_coords, w)
-    # print(test)
-    # print(itg_pts.natural_coords[:, test[1]])
-    # print(itg_pts.weights[:, test[1]])
-    # print(itg_pts.natural_coords)
-    # exit()
-    # itg_pts.weights = itg_pts.weights/2
+
     return mfe.gauss.IntegrationPoints(
         nat_coords,
-        # mfe.utils.shift_ndarray_for_vectorization(nat_coords), 
         w,
     )
-    # return itg_pts
 
 @define
 class SurfaceTraction:
@@ -98,7 +75,6 @@ class SurfaceTraction:
 
     def __attrs_post_init__(self) -> None:
         self._ndim = len(self.constants)
-        self.order = len(self.constants[0]) - 1
         self.funcs = tuple(_build_polynomial for _ in self.constants)
         self._setup_dict = SURFACE_TRACTION_SETUP[self.face].copy()
 
@@ -107,7 +83,8 @@ class SurfaceTraction:
         '''
         Construct a SurfaceTraction instance for an element, representing a surface traction applied to an element face.
         '''
-        return cls(face, constants, _generate_surf_traction_itg_pts(elem, face), thickness)
+        order = len(constants[0]) - 1
+        return cls(face, constants, _generate_surf_traction_itg_pts(elem, face, order), thickness, order)
 
     def compute_fs(self, elem_coords: np.ndarray) -> np.ndarray:
         '''
@@ -139,14 +116,14 @@ class SurfaceTraction:
         '''
         Compute the force vector due to the surface traction.
         '''
-        grid_shape = self.integration_points.natural_coords
+        grid_shape = self.integration_points.natural_coords.shape
 
         # Compute the shape functions for the grid of integration points along the surface
         N = elem.compute_N(self.integration_points.natural_coords)
         N_transpose = np.transpose(N, axes=(0, 1, 3, 2))
 
         # Get the positions of the integration points in the local element coordinate system
-        self.integration_points.element_coords = elem.interpolate(elem.x_element, self.integration_points.natural_coords)
+        self.integration_points.element_coords = elem.map_to_element(elem.x_element, self.integration_points.natural_coords)
 
         # Compute the surface traction forces at the integration points
         f_surf = self.compute_fs(self.integration_points.element_coords)
@@ -164,13 +141,6 @@ class SurfaceTraction:
 
         # Compute the force vector for each integration point, then return the sum multiplied by the thickness
         w_ij = self.integration_points.weights
-        print(w_ij.shape)
-        # print(w_ij[0, 0, :, :])
-        print(J_det_surf.shape)
-        print(np.matmul(N_transpose, f_surf).shape)
-        # print(f_surf.shape)
-        print(w_ij)
-        # exit()
         f = w_ij*J_det_surf*np.matmul(N_transpose, f_surf)
         return self.thickness*np.sum(f, axis=(0, 1))
 
