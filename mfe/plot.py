@@ -5,6 +5,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+from matplotlib.image import AxesImage
+import matplotlib.colorbar
 
 from mfe.elem_lib import Element2D
 import mfe.utils
@@ -275,3 +278,27 @@ def plot_element_strain_energy_density(
     )
     fig.tight_layout()
     return fig, ax
+
+def plot_stiffness_heatmap(fig: Figure, ax: Axes, k: np.ndarray, label_every: int | None = None, **kwargs) -> matplotlib.colorbar.Colorbar:
+    # Set defaults
+    plt_kwargs = {'cmap': 'coolwarm'}
+    plt_kwargs.update(**kwargs)
+    
+    # Create heatmap
+    c = ax.imshow(k, **plt_kwargs)
+    
+    # Add colorbar
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+    cbar = fig.colorbar(c, cax=cax, format='{x:.2e}')
+
+    # Label axes ticks if desired
+    if label_every is not None:
+        ax.set_xticks(np.arange(0, k.shape[0], label_every))
+        ax.set_yticks(np.arange(0, k.shape[1], label_every))
+
+    # Label axes and titles
+    ax.set_ylabel('$i$-index')
+    ax.set_xlabel('$j$-index')
+    ax.set_title('Stiffness matrix')
+    return cbar

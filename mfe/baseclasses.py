@@ -50,6 +50,8 @@ class Element2D:
     nodes: list[Node]
     integration_points: IntegrationPoints
     nnodes: int = field(init=False)
+    D: np.ndarray = field(init=False)
+    thickness: float = 1.0
     _debug: bool = False
     _ndim: int = 2
 
@@ -204,7 +206,7 @@ class Element2D:
         '''
         return 0.5*np.matmul(np.transpose(sigma, axes=(0, 1, 3, 2)), eps)
     
-    def compute_k(self, D: np.ndarray, thickness: float = 1) -> np.ndarray:
+    def _compute_k(self, D: np.ndarray, thickness: float = 1) -> np.ndarray:
         '''
         Compute the stiffness matrix (k) for the element.
         psi = 1/2*[sigma]'[eps]
@@ -226,6 +228,29 @@ class Element2D:
         w_ij = self.integration_points.weights
         k = w_ij*np.matmul(B_transpose, np.matmul(D, B))*J_det
         return thickness*np.sum(k, axis=(0, 1))
+    
+    def compute_k(self) -> np.ndarray:
+        '''
+        Compute the stiffness matrix (k) for the element.
+        psi = 1/2*[sigma]'[eps]
+        '''        
+        # Compute for the integration points...
+        dN = self.compute_dN(self.integration_points.natural_coords)
+        J = self.compute_J(dN)
+        B = self.compute_B(dN, J)
+
+        # Get the Jacobi-determinant for each of the grid points
+        J_det = np.linalg.det(J[:, :, 0:2, 0:2]).reshape(
+            (*self.integration_points.natural_coords.shape[0:2], 1, 1)
+        )
+
+        # Transpose B for matrix multiplication
+        B_transpose = np.transpose(B, axes=(0, 1, 3, 2))
+
+        # Compute stiffness matrix for each integration point, then return sum multiplied by the thickness
+        w_ij = self.integration_points.weights
+        k = w_ij*np.matmul(B_transpose, np.matmul(self.D, B))*J_det
+        return self.thickness*np.sum(k, axis=(0, 1))
     
     def compute_strain(self, B: np.ndarray, q: np.ndarray) -> np.ndarray:
         '''

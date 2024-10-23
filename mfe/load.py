@@ -83,7 +83,8 @@ class SurfaceTraction:
         '''
         Construct a SurfaceTraction instance for an element, representing a surface traction applied to an element face.
         '''
-        order = len(constants[0]) - 1
+        # order = len(constants[0]) - 1
+        order = 1
         return cls(face, constants, _generate_surf_traction_itg_pts(elem, face, order), thickness, order)
 
     def compute_fs(self, elem_coords: np.ndarray) -> np.ndarray:

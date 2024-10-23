@@ -1,3 +1,7 @@
+import io
+import pathlib
+
+import polars as pl
 import numpy as np
 import numpy.typing as npt
 
@@ -61,3 +65,46 @@ def broadcast_ndarray_for_vectorziation(arr: np.ndarray, grid_shape: tuple[int])
 
 def components_from_grid(grid: np.ndarray) -> tuple[np.ndarray]:
     return grid[:, :, 0, 0], grid[:, :, 1, 0]
+
+def read_connectivity_from_csv(fp: pathlib.Path, revise: bool = False) -> np.ndarray:
+    try:
+        # If all elements are the same in terms of number of nodes, this should pass
+        df = pl.read_csv(fp, has_header=False)
+    except:
+        # If not, append dummy commas to make the csv readable by polars
+        with open(fp, 'r') as f:
+            lines = f.readlines()
+        # Count the max number of columns required in the csv format
+        max_cols = 2
+        ncols_per_line = []
+        for line in lines:
+            ncols = len(line.split(','))
+            ncols_per_line.append(ncols)
+            if ncols > max_cols: max_cols = ncols
+        # Revise file lines with dummy commas
+        rev_lines = []
+        for (line, ncols) in zip(lines, ncols_per_line):
+            diff = max_cols - ncols
+            rev_line = line.strip()
+            if diff != 0:
+                rev_line += ','*diff # Append commas with empty values to end of line
+            rev_lines.append(rev_line)
+        # Read revised lines into csv, where dummy entries are filled with nan
+        df = pl.read_csv(io.StringIO('\n'.join(rev_lines)), has_header=False)
+    
+    # Update file with dummy commas if requested
+    if revise:
+        with open(fp, 'w+') as f:
+            f.writelines(rev_lines)
+
+    # Return as numpy array
+    return df.to_numpy()
+
+def read_mesh_from_csv(connectivity: pathlib.Path, node_coords: pathlib.Path) -> tuple[np.ndarray]:
+    # Read nodal coordinates
+    node_coords_df = pl.read_csv(node_coords)
+
+    # Read connectivity matrix
+    G = read_connectivity_from_csv(connectivity)
+
+    return G, node_coords_df.to_numpy()
