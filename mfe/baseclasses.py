@@ -42,8 +42,9 @@ class Material:
 @define
 class Node:
     element_id: int
-    element_coords: np.ndarray
     natural_coords: np.ndarray
+    global_coords: np.ndarray
+    element_coords: np.ndarray = field(init=False)
 
 @define
 class Element2D:
@@ -163,6 +164,10 @@ class Element2D:
     @property
     def x_element(self) -> np.ndarray:
         return np.array(list(itertools.chain.from_iterable([node.element_coords for node in self.nodes])))
+
+    @property
+    def x_global(self) -> np.ndarray:
+        return np.array(list(itertools.chain.from_iterable([node.global_coords for node in self.nodes])))
     
     def map_to_element(self, nodal_vec: np.ndarray, natural_grid: np.ndarray) -> np.ndarray:
         # Compute N for the array of coordinates

@@ -105,8 +105,10 @@ class SurfaceTraction:
         grid_shape = elem_coords.shape[0:2]
         f_surf = []
         for _, cgroup in enumerate(self.constants):
+            # Single variable polynomial
             if type(cgroup) != list:
                 soln = np.sum(np.array([cgroup[i]*elem_coords[:, :, 0, :]**i for i in range(len(cgroup))]), axis=0)
+            # Multi-variate polynomial
             elif len(cgroup) == 2:
                 soln = np.sum(np.array([cgroup[0][i]*elem_coords[:, :, 0, :]**i for i in range(len(cgroup[0]))]), axis=0)
                 soln += np.sum(np.array([cgroup[1][i]*elem_coords[:, :, 1, :]**i for i in range(len(cgroup[1]))]), axis=0)

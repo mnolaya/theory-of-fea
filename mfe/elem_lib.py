@@ -10,17 +10,23 @@ from mfe.gauss import IntegrationPoints
 from mfe.baseclasses import Element2D, Node
 import mfe.utils
 
+def _set_elem_coords(nodes: list[Node]) -> None:
+    elem_origin = nodes[0].global_coords
+    for node in nodes:
+        node.element_coords = node.global_coords - elem_origin
+
 @define
 class Linear2D(Element2D):
 
     @classmethod
     def from_element_coords(cls, coords: list[np.ndarray], num_pts: int = 2) -> Linear2D:
         nodes = [
-            Node(element_id=1, element_coords=coords[0], natural_coords=np.array([-1, -1])),
-            Node(element_id=2, element_coords=coords[1], natural_coords=np.array([1, -1])),
-            Node(element_id=3, element_coords=coords[2], natural_coords=np.array([1, 1])),
-            Node(element_id=4, element_coords=coords[3], natural_coords=np.array([-1, 1])),
+            Node(element_id=1, global_coords=coords[0], natural_coords=np.array([-1, -1])),
+            Node(element_id=2, global_coords=coords[1], natural_coords=np.array([1, -1])),
+            Node(element_id=3, global_coords=coords[2], natural_coords=np.array([1, 1])),
+            Node(element_id=4, global_coords=coords[3], natural_coords=np.array([-1, 1])),
         ]
+        _set_elem_coords(nodes)
         itg_pts = IntegrationPoints.make_ip_grid(num_pts, ndim=2)
         return cls(nodes, integration_points=itg_pts)
     
@@ -132,15 +138,16 @@ class Quadratic2D(Element2D):
     @classmethod
     def from_element_coords(cls, coords: list[np.ndarray], num_pts: int = 3) -> Quadratic2D:
         nodes = [
-            Node(element_id=1, element_coords=coords[0], natural_coords=np.array([-1, -1])),
-            Node(element_id=2, element_coords=coords[1], natural_coords=np.array([0, -1])),
-            Node(element_id=3, element_coords=coords[2], natural_coords=np.array([1, -1])),
-            Node(element_id=4, element_coords=coords[3], natural_coords=np.array([1, 0])),
-            Node(element_id=5, element_coords=coords[4], natural_coords=np.array([1, 1])),
-            Node(element_id=6, element_coords=coords[5], natural_coords=np.array([0, 1])),
-            Node(element_id=7, element_coords=coords[6], natural_coords=np.array([-1, 1])),
-            Node(element_id=8, element_coords=coords[7], natural_coords=np.array([-1, 0])),
+            Node(element_id=1, global_coords=coords[0], natural_coords=np.array([-1, -1])),
+            Node(element_id=2, global_coords=coords[1], natural_coords=np.array([0, -1])),
+            Node(element_id=3, global_coords=coords[2], natural_coords=np.array([1, -1])),
+            Node(element_id=4, global_coords=coords[3], natural_coords=np.array([1, 0])),
+            Node(element_id=5, global_coords=coords[4], natural_coords=np.array([1, 1])),
+            Node(element_id=6, global_coords=coords[5], natural_coords=np.array([0, 1])),
+            Node(element_id=7, global_coords=coords[6], natural_coords=np.array([-1, 1])),
+            Node(element_id=8, global_coords=coords[7], natural_coords=np.array([-1, 0])),
         ]
+        _set_elem_coords(nodes)
         # if num_pts < 3: print('Warning!')
         itg_pts = IntegrationPoints.make_ip_grid(num_pts, ndim=2)
         return cls(nodes, integration_points=itg_pts)

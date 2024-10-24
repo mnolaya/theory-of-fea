@@ -76,3 +76,41 @@ def assemble_global_solution(G: np.ndarray, elems: list[baseclasses.Element2D], 
                         K[global_row_idx, global_col_idx] = K[global_row_idx, global_col_idx] + k_e[local_row_idx, local_col_idx]
     return K, F
 
+def apply_disp_bcs(x_disp: dict[int, float], y_disp: dict[int, float], K: np.ndarray, F: np.ndarray, penalty_scale: float = 1e6):
+    # Create the penalty method stiffness scaled off the absolute maximum global stiffness
+    C = np.max(np.abs(K))*penalty_scale
+
+    # Loop through displacements in x and apply to K, F appropriately
+    for node_num, disp in x_disp.items():
+        idx = _get_node_matrix_index(node_num, 1, 2)
+        K[idx, idx] = K[idx, idx] + C
+        F[idx] = F[idx] + C*disp
+
+    # Loop through displacements in y and apply to K, F appropriately
+    for node_num, disp in y_disp.items():
+        idx = _get_node_matrix_index(node_num, 2, 2)
+        K[idx, idx] = K[idx, idx] + C
+        F[idx] = F[idx] + C*disp
+    
+    return K, F
+
+def build_assembly_coord_grid(G: np.ndarray, elems: list[baseclasses.Element2D], natural_grid: np.ndarray) -> np.ndarray:
+    assembly_grid = []
+    for i in range(G.shape[0]):
+        elem_grid = elems[i].map_to_element(elems[i].x_global, natural_grid)
+        assembly_grid.append(elem_grid)
+    return np.vstack(assembly_grid)
+
+def map_nodal_field_to_assembly(G: np.ndarray, elems: list[baseclasses.Element2D], Q: np.ndarray, natural_grid: np.ndarray, ndof: int = 2) -> tuple[np.ndarray]:
+    assembly_field = []
+    for i in range(G.shape[0]):
+        elem_field = []
+        for j in range(G[i].shape[0]):
+            for component in range(ndof):
+                component += 1
+                idx_row = _get_node_matrix_index(G[i][j], component, ndof)
+                elem_field.append(Q[idx_row, 0])
+        elem_field = np.array(elem_field)
+        assembly_field.append(elems[i].map_to_element(elem_field, natural_grid))
+    return np.vstack(assembly_field)
+
