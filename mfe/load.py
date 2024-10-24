@@ -69,13 +69,13 @@ class SurfaceTraction:
     integration_points: mfe.gauss.IntegrationPoints
     thickness: float = 1
     order: int = field(init=False)
-    funcs: tuple = field(init=False)
+    # funcs: tuple = field(init=False)
     _ndim: int = 2
     _setup_dict: dict = field(init=False, repr=False)
 
     def __attrs_post_init__(self) -> None:
         self._ndim = len(self.constants)
-        self.funcs = tuple(_build_polynomial for _ in self.constants)
+        # self.funcs = tuple(_build_polynomial for _ in self.constants)
         self._setup_dict = SURFACE_TRACTION_SETUP[self.face].copy()
 
     @classmethod
@@ -87,15 +87,31 @@ class SurfaceTraction:
         order = 1
         return cls(face, constants, _generate_surf_traction_itg_pts(elem, face, order), thickness, order)
 
+    # def compute_fs(self, elem_coords: np.ndarray) -> np.ndarray:
+    #     '''
+    #     Compute the surface traction forces at the integration points in the local element coordinate system.
+    #     '''
+    #     grid_shape = elem_coords.shape[0:2]
+    #     f_surf = np.array([
+    #         f(elem_coords[:, :, i, :], c)
+    #         for i, (f, c) in enumerate(zip(self.funcs, self.constants))
+    #     ]).reshape((2, 1, *grid_shape))
+    #     return mfe.utils.shift_ndarray_for_vectorization(f_surf)
+
     def compute_fs(self, elem_coords: np.ndarray) -> np.ndarray:
         '''
         Compute the surface traction forces at the integration points in the local element coordinate system.
         '''
         grid_shape = elem_coords.shape[0:2]
-        f_surf = np.array([
-            f(elem_coords[:, :, i, :], c)
-            for i, (f, c) in enumerate(zip(self.funcs, self.constants))
-        ]).reshape((2, 1, *grid_shape))
+        f_surf = []
+        for _, cgroup in enumerate(self.constants):
+            if type(cgroup) != list:
+                soln = np.sum(np.array([cgroup[i]*elem_coords[:, :, 0, :]**i for i in range(len(cgroup))]), axis=0)
+            elif len(cgroup) == 2:
+                soln = np.sum(np.array([cgroup[0][i]*elem_coords[:, :, 0, :]**i for i in range(len(cgroup[0]))]), axis=0)
+                soln += np.sum(np.array([cgroup[1][i]*elem_coords[:, :, 1, :]**i for i in range(len(cgroup[1]))]), axis=0)
+            f_surf.append(soln)
+        f_surf = np.array(f_surf).reshape((2, 1, *grid_shape))
         return mfe.utils.shift_ndarray_for_vectorization(f_surf)
 
     def compute_J_det_surf(self, J: np.ndarray, grid_shape: np.ndarray) -> np.ndarray:

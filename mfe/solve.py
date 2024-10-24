@@ -10,7 +10,7 @@ ELEMENT_BY_NODES = {
 }
 
 def _get_node_matrix_index(node_num: int, component: int, ndof: int) -> int:
-    return ndof*(node_num - 1) + component
+    return ndof*(node_num - 1) + component - 1
 
 def assemble_mesh(G: np.ndarray, node_coords: np.ndarray) -> list[baseclasses.Element2D]:
     '''
@@ -29,8 +29,8 @@ def assemble_global_solution(G: np.ndarray, elems: list[baseclasses.Element2D], 
     nnodes = int(np.nanmax(G))
 
     # Initialize global stiffness [K] and global force vector [F]
-    K = np.zeros((2*nnodes, 2*nnodes))
-    F = np.zeros((2*nnodes, 1))
+    K = np.zeros((ndof*nnodes, ndof*nnodes))
+    F = np.zeros((ndof*nnodes, 1))
 
     ## Assemble
 
@@ -40,7 +40,7 @@ def assemble_global_solution(G: np.ndarray, elems: list[baseclasses.Element2D], 
 
         # Compute the local element stiffness matrix and force vector
         k_e = elems[i].compute_k()
-        f_e = np.zeros((2*elems[i].nnodes, 1))
+        f_e = np.zeros((ndof*elems[i].nnodes, 1))
         if loads[i]: f_e = loads[i].compute_force_vector(elems[i])
 
         for j in range(elem_connect.shape[0]):
@@ -58,13 +58,12 @@ def assemble_global_solution(G: np.ndarray, elems: list[baseclasses.Element2D], 
                 global_row_idx = _get_node_matrix_index(global_node_row, component, ndof)
 
                 # Update global force vector
-                F[global_row_idx - 1, 0] = F[global_row_idx - 1, 0] + f_e[local_row_idx - 1, 0]
+                F[global_row_idx, 0] = F[global_row_idx, 0] + f_e[local_row_idx, 0]
 
                 for k in range(elem_connect.shape[0]):
                     # Get current local element and corresponding global node numbers for col k of the global solution
                     local_node_col = k + 1
                     global_node_col = elem_connect[k]
-
 
                     for component in range(ndof):
                         component += 1 # Python indexing starts at 0; add 1
@@ -74,6 +73,6 @@ def assemble_global_solution(G: np.ndarray, elems: list[baseclasses.Element2D], 
                         global_col_idx = _get_node_matrix_index(global_node_col, component, ndof)
 
                         # Update global stiffness matrix
-                        K[global_row_idx - 1, global_col_idx - 1] = K[global_row_idx - 1, global_col_idx - 1] + k_e[local_row_idx - 1, local_col_idx - 1]
+                        K[global_row_idx, global_col_idx] = K[global_row_idx, global_col_idx] + k_e[local_row_idx, local_col_idx]
     return K, F
 

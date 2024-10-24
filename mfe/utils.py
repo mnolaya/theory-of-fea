@@ -20,6 +20,9 @@ def get_shape_func_by_num(N: np.ndarray, i: int) -> np.ndarray:
     sfunc_idx = {i + 1: -2 + 2*(i + 1) for i in range(int(N.shape[1]/2))}
     return N[0, sfunc_idx[i], :, :]
 
+# def coords_as_grid(coord_vec: np.ndarray) -> np.ndarray:
+#     coords_grid = np.zeros((coord_vec.shape[0]))
+#     return 
 # def shift_ndarray_val_axis(arr: np.ndarray) -> np.ndarray:
 #     '''
 #     Shift the axis of a i x j x ngrid x ngrid numpy array where values are found from the first two
