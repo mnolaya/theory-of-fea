@@ -1,6 +1,8 @@
 # MECH.5130: Theory of Finite Element Analysis
 
-**Michael N. OLaya**
+Written by: **Michael N. Olaya**
+
+Fall 2024
 
 ---
 
