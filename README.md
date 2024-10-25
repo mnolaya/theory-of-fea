@@ -10,7 +10,7 @@ Welcome to Michael's Finite Element (`mfe`) solver package written exclusively i
 
 ## Requirements
 
-1. Python 3.10+
+1. Python 3.12+
 
 ## Package installation
 
@@ -23,7 +23,7 @@ git clone https://github.com/mnolaya/theory-of-fea
 It is recommended to create a Python virtual environment to install the package into. If using [conda](https://docs.anaconda.com/miniconda/):
 
 ```bash
-conda create -n some_package_name python=3.10
+conda create -n some_package_name python=3.12
 ```
 
 Then, navigate to the top level of the repo where this README is located, activate your newly created virtual environment, and install the package, which should include all necessary dependencies.
