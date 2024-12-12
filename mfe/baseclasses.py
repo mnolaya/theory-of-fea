@@ -11,6 +11,13 @@ from mfe.gauss import IntegrationPoints
 
 DEBUG_TOL = 1e-6
 A_2D = np.array([[1, 0, 0, 0], [0, 0, 0, 1], [0, 1, 1, 0]])
+EPS_TENS_TO_ENG_ROT = np.array(
+    [
+        [1, 0, 0],
+        [0, 1, 0],
+        [0, 0, 0.5]
+    ]
+)
 
 @define
 class Material:
@@ -52,6 +59,7 @@ class Element2D:
     integration_points: IntegrationPoints
     nnodes: int = field(init=False)
     D: np.ndarray = field(init=False)
+    T: np.ndarray | None = None
     thickness: float = 1.0
     _debug: bool = False
     _ndim: int = 2
@@ -254,7 +262,20 @@ class Element2D:
 
         # Compute stiffness matrix for each integration point, then return sum multiplied by the thickness
         w_ij = self.integration_points.weights
-        k = w_ij*np.matmul(B_transpose, np.matmul(self.D, B))*J_det
+        if self.T is None:
+            D = self.D
+        else:
+            ER = EPS_TENS_TO_ENG_ROT
+            D = np.matmul(
+                np.linalg.inv(self.T), np.matmul(
+                    self.D, np.matmul(
+                        ER, np.matmul(
+                            self.T, np.linalg.inv(ER)
+                        )
+                    )
+                )
+            )
+        k = w_ij*np.matmul(B_transpose, np.matmul(D, B))*J_det
         return self.thickness*np.sum(k, axis=(0, 1))
     
     def compute_strain(self, B: np.ndarray, q: np.ndarray) -> np.ndarray:

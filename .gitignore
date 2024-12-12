@@ -1,3 +1,13 @@
+# Abaqus
+*.odb
+*.prt
+*.res
+*.dat
+*.sta
+*.msg
+*.com
+*.SMABulk
+
 # Temp pptx
 ~$*.pptx
 
