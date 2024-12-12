@@ -111,3 +111,39 @@ def read_mesh_from_csv(connectivity: pathlib.Path, node_coords: pathlib.Path) ->
     G = read_connectivity_from_csv(connectivity)
 
     return G, node_coords_df.to_numpy()
+    
+def make_transform_matrix_2D(theta: float) -> np.ndarray:
+    '''
+    Make a 2D rotation matrix:
+    [cos(theta), sin(theta)]
+    [-sin(theta), cos(theta)]
+    '''
+    rad = np.deg2rad(theta)
+    m = np.cos(rad)
+    n = np.sin(rad)
+    return np.array(
+        [
+            [m**2, n**2, 2*m*n],
+            [n**2, m**2, -2*m*n],
+            [-m*n, m*n, (m**2) - (n**2)]
+        ],
+    )
+
+def transform_voigt_2D(theta: float, tens_voigt: np.ndarray) -> np.ndarray:
+    '''
+    Transform 2D Voigt notation matrix (3x1) according to some angle theta.
+    '''
+    T = make_transform_matrix_2D(theta)
+    return np.matmul(T, tens_voigt)
+    
+def D_transversely_isotropic_plane_stress(E11, E22, nu12, G12) -> np.ndarray:
+    '''
+    Compute D for a transversely isotropic material.
+    '''
+    S = np.eye(3)
+    S[0, 0] = 1/E11
+    S[0, 1] = -nu12/E11
+    S[1, 0] = S[0, 1]
+    S[1, 1] = 1/E22
+    S[2, 2] = 1/G12
+    return np.linalg.inv(S)
