@@ -307,6 +307,19 @@ class Element2D:
             D = mfe.utils.broadcast_ndarray_for_vectorziation(D, eps.shape[0:2])
         elif eps.shape != (3, 1):
             print(f'error: strain matrix is of shape {eps.shape}, but must be of shape (3, 1)')
+        if self.T is None:
+            D = self.D
+        else:
+            ER = EPS_TENS_TO_ENG_ROT
+            D = np.matmul(
+                np.linalg.inv(self.T), np.matmul(
+                    self.D, np.matmul(
+                        ER, np.matmul(
+                            self.T, np.linalg.inv(ER)
+                        )
+                    )
+                )
+            )
         return np.matmul(D, eps)
 
 
