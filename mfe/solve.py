@@ -104,13 +104,42 @@ def build_assembly_coord_grid(G: np.ndarray, elems: list[baseclasses.Element2D],
 def map_nodal_field_to_assembly(G: np.ndarray, elems: list[baseclasses.Element2D], Q: np.ndarray, natural_grid: np.ndarray, ndof: int = 2) -> tuple[np.ndarray]:
     assembly_field = []
     for i in range(G.shape[0]):
-        elem_field = []
+        node_field = []
         for j in range(G[i].shape[0]):
             for component in range(ndof):
                 component += 1
                 idx_row = _get_node_matrix_index(G[i][j], component, ndof)
-                elem_field.append(Q[idx_row, 0])
-        elem_field = np.array(elem_field)
-        assembly_field.append(elems[i].map_to_element(elem_field, natural_grid))
+                node_field.append(Q[idx_row, 0])
+        node_field = np.array(node_field)
+        assembly_field.append(elems[i].map_to_element(node_field, natural_grid))
     return np.vstack(assembly_field)
 
+def map_stress_strain_to_assembly(G: np.ndarray, elems: list[baseclasses.Element2D], Q: np.ndarray, natural_grid: np.ndarray, ndof: int = 2, loc_sys: bool = True) -> tuple[np.ndarray]:
+    stress_field = []
+    strain_field = []
+    for i in range(G.shape[0]):
+        # Get nodal field for current element
+        node_field = []
+        for j in range(G[i].shape[0]):
+            for component in range(ndof):
+                component += 1
+                idx_row = _get_node_matrix_index(G[i][j], component, ndof)
+                node_field.append(Q[idx_row, 0])
+        node_field = np.array(node_field)
+        
+        # Compute stress and strain
+        elem = elems[i]
+        dN = elem.compute_dN(natural_grid)
+        J = elem.compute_J(dN)
+        B = elem.compute_B(dN, J)
+        strain = elem.compute_strain(B, node_field)
+        stress = elem.compute_stress(elem.D, strain)
+
+        if loc_sys:
+            ER = baseclasses.EPS_TENS_TO_ENG_ROT
+            strain = np.matmul(ER, np.matmul(elems[i].T, np.matmul(np.linalg.inv(ER), strain)))
+            stress = np.matmul(elem.T, stress)
+
+        strain_field.append(strain)
+        stress_field.append(stress)
+    return np.vstack(stress_field), np.vstack(strain_field)
