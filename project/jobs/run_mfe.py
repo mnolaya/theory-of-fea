@@ -1,3 +1,4 @@
+import argparse
 import pathlib
 import re
 import time
@@ -18,6 +19,12 @@ D = mfe.utils.D_transversely_isotropic_plane_stress(E11=231000, E22=15000, nu12=
 THICKNESS = 0.001
 APPLIED_DISP = 0.1
 PLOT_ELEM_GRID = mfe.utils.make_natural_grid(4)
+CONVERGED_MESH = 1
+
+def _argparse() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument('mode', default='sensitivity', nargs='?')
+    return parser.parse_args()
 
 def load_mesh(job_dir: pathlib.Path, job_name: str) -> tuple[np.ndarray]:
     # Set the current mesh files
@@ -59,7 +66,7 @@ def set_elem_params(job_name: str, elems: np.ndarray[mfe.baseclasses.Element2D])
         e.T = T.copy()
     return elems
 
-def run_simulation(G: np.ndarray, elems: np.ndarray, disp_bcs: dict[str, dict[int, float]]) -> tuple[np.ndarray]:
+def run_simulation(G: np.ndarray, elems: np.ndarray, disp_bcs: dict[str, dict[int, float]], K_sensitivity: float = 1.0) -> tuple[np.ndarray]:
     # Assemble solution matrices
     loads = [[] for _ in elems]
     K, F = mfe.solve.assemble_global_solution(G, elems, loads, 2)
@@ -67,26 +74,86 @@ def run_simulation(G: np.ndarray, elems: np.ndarray, disp_bcs: dict[str, dict[in
     # Apply disp BCs
     K, F = mfe.solve.apply_disp_bcs(disp_bcs['x_disp'], disp_bcs['y_disp'], K, F)
 
+    # Apply sensititity to K for calc
+    K = K*(1 + K_sensitivity)
+
     # Solve
     Q = np.matmul(np.linalg.inv(K), F)
 
     return Q, F
 
-# def write_results(job_dir: pathlib.Path, G: np.ndarray, elems: np.ndarray[mfe.baseclasses.Element2D], Q: np.ndarray, F: np.ndarray) -> None:
-#     # Map displacements, stresses, and strains to the assembly
-#     x_assembly = mfe.solve.build_assembly_coord_grid(G, elems, PLOT_ELEM_GRID)
-#     # Q_assembly = mfe.solve.map_nodal_field_to_assembly(G, elems, Q, PLOT_ELEM_GRID)
-#     # F_assembly = mfe.solve.map_nodal_field_to_assembly(G, elems, F, PLOT_ELEM_GRID)
-#     # sig, eps = mfe.solve.map_stress_strain_to_assembly(G, elems, Q, PLOT_ELEM_GRID, loc_sys=True)
+def run_sensitivity_study() -> None:
+    results = {0: [], 90: [], 45: []}
+    job_dirs = []
+    for fp in JOB_DIR.glob(f'*mesh{CONVERGED_MESH}*'):
+        if not fp.is_dir: continue
+        if not any(f'_{theta}' in fp.as_posix() for theta in results.keys()): continue
+        job_dirs.append(fp)
 
-#     # # Write results to file
-#     np.save(job_dir.joinpath(name), arr)
-#     # np.save(job_dir.joinpath('displacements'), Q_assembly)
-#     # np.save(job_dir.joinpath('reaction_forces'), F_assembly)
-#     # np.save(job_dir.joinpath('stress'), sig)
-#     # np.save(job_dir.joinpath('strain'), eps)
+    results = []
+    for ks in np.linspace(-0.01, 0.01, 2):
+        char = {'p': ks}
+        for fp in JOB_DIR.glob(f'*mesh*'):
+            job_name = fp.name
+            theta = re.search(r'_(\d+)', job_name).group(1)
+            if not any(f'_{theta}' in fp.as_posix() for theta in [0, 90, 45]): continue
+            # char.update({'theta': int(theta)})
+            print(f'\n*starting job -> {job_name}')
 
-def main() -> None:
+            # Load the mesh connectivity and elements
+            print('loading mesh from file...')
+            G, elems = load_mesh(fp, job_name)
+            char.update({
+                'elements': len(elems),
+            })
+
+            # Load the boundary conditions
+            print('loading bcs from file...')
+            disp_bcs = load_bcs(fp, job_name)
+
+            # Get gage elements
+            gage_elem_labels = pl.read_csv(fp.joinpath(f'{job_name}_gage_elems_mfe.csv'))
+            gage_elems = np.array(elems)[gage_elem_labels.to_series().to_list()]
+            gage_G = G[gage_elem_labels.to_series().to_list()]
+
+            # Set element parameters (thickness, rotation, material stiffness)
+            print('initializing element parameters...')
+            elems = set_elem_params(job_name, elems)
+
+            # Run the analysis
+            start = time.perf_counter()
+            print('running simulation')
+            Q, F = run_simulation(G, elems, disp_bcs, K_sensitivity=ks)
+            print('simulation complete!')
+            end = time.perf_counter()
+
+            # Gage quantities
+            # sig, eps = mfe.solve.map_stress_strain_to_assembly(gage_G, gage_elems, Q, PLOT_ELEM_GRID, loc_sys=True)
+            sig, eps = mfe.solve.map_stress_strain_to_assembly(gage_G, gage_elems, Q, PLOT_ELEM_GRID, loc_sys=False)
+            sig, eps = [np.mean(field, axis=(0, 1)) for field in [sig, eps]]
+
+            # Results
+            if theta == '0':
+                char.update({'E22': sig[1][0]/eps[1][0]})
+            elif theta == '90':
+                char.update({'E11': sig[1][0]/eps[1][0]})
+                char.update({'nu12': -eps[0][0]/eps[1][0]})
+            elif theta == '45':
+                char.update({'G12': sig[1][0]/(2*(eps[1][0] - eps[0][0]))})
+            results.append(pl.DataFrame(char))
+            # print(char)
+            # input()
+    df = pl.concat(results, how='diagonal').group_by('elements', 'p').agg(pl.all().drop_nulls().first())
+    df = df.with_columns(
+        (100*abs(pl.col('E11') - 231000)/pl.col('E11')).name.suffix('_tol'),
+        (100*abs(pl.col('E22') - 15000)/pl.col('E22')).name.suffix('_tol'),
+        (100*abs(pl.col('nu12') - 0.21)/pl.col('nu12')).name.suffix('_tol'),
+        (100*abs(pl.col('G12') - 15800)/pl.col('G12')).name.suffix('_tol'),
+    )
+    print('study complete, writing results to file...')
+    df.write_csv('sensitivity_study_results.csv')
+
+def run_convergence_study() -> None:
     for fp in JOB_DIR.glob('*'):
         if not fp.is_dir(): continue
         job_name = fp.name
@@ -173,6 +240,14 @@ def main() -> None:
         with open(fp.joinpath('job_summary.log'), 'w+') as f:
             for k, v in summary.items():
                 f.write(f'{k}: {v}\n')
+
+def main() -> None:
+    funcs = {
+        'sensitivity': run_sensitivity_study,
+        'convergence': run_convergence_study,
+    }
+    args = _argparse()
+    funcs[args.mode]()    
         
 if __name__ == "__main__":
     main()
