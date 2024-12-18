@@ -15,7 +15,7 @@ EPS_TENS_TO_ENG_ROT = np.array(
     [
         [1, 0, 0],
         [0, 1, 0],
-        [0, 0, 0.5]
+        [0, 0, 2]
     ]
 )
 
@@ -251,7 +251,7 @@ class Element2D:
         dN = self.compute_dN(self.integration_points.natural_coords)
         J = self.compute_J(dN)
         B = self.compute_B(dN, J)
-
+        
         # Get the Jacobi-determinant for each of the grid points
         J_det = np.linalg.det(J[:, :, 0:2, 0:2]).reshape(
             (*self.integration_points.natural_coords.shape[0:2], 1, 1)

@@ -1,0 +1,28 @@
+font.size: 22
+font.family: serif
+mathtext.fontset : dejavuserif
+
+lines.linewidth: 3
+lines.markersize: 7
+errorbar.capsize: 1.5
+
+xtick.major.pad: 6
+ytick.major.pad: 6
+xtick.direction: in
+ytick.direction: in
+xtick.labelsize: 18
+ytick.labelsize: 18
+xtick.top: True
+ytick.right: True
+
+legend.title_fontsize: 14
+legend.fontsize: 14
+legend.frameon: False
+legend.shadow: False
+legend.fancybox: False
+legend.edgecolor: black
+legend.borderaxespad: 0
+
+text.usetex : True
+
+savefig.bbox : tight

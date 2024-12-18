@@ -21,6 +21,12 @@ def assemble_mesh(G: np.ndarray, node_coords: np.ndarray) -> list[baseclasses.El
         idx_slice = [i-1 for i in global_nodes.tolist()]
         elem = ELEMENT_BY_NODES[len(idx_slice)]
         elem_coords = node_coords[idx_slice, ...]
+
+        # Re-arrange so nodes are arranged CCW
+        # if len(idx_slice) == 8:
+            # elem_coords_ = elem_coords.copy()
+            # elem_coords[[0, 1, 2, 3]] = elem_coords_[[0, 2, 4, 6]]
+            # elem_coords[[4, 5, 6, 7]] = elem_coords_[[1, 3, 5, 7]]
         elems.append(elem.from_element_coords(elem_coords))
     return elems
 

@@ -1,3 +1,6 @@
+# MFE results
+*.npy
+
 # Abaqus
 *.odb
 *.prt

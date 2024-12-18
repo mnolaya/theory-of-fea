@@ -1,0 +1,40 @@
+<Description>
+   ABAQUS/eliT_CheckLicense rank 0 received the INTERRUPT signal
+
+</Description>
+
+<Context>
+   eliT_CheckLicense
+</Context>
+
+<Callstack>
+  1)  ucrtbase.dll                perror                                  
+  2)  KERNELBASE.dll              CtrlRoutine                             
+  3)  KERNEL32.DLL                BaseThreadInitThunk                     
+  4)  ntdll.dll                   RtlUserThreadStart                      
+</Callstack>
+
+<Memory>
+   <Current>            0 GB </Current>
+   <Resident>           0 GB </Resident>
+   <Physical>          15 GB </Physical>
+   <Limit>              0 GB </Limit>
+   <Accessible>        15 GB </Accessible>
+   <Available>          6 GB </Available>
+   <Allocator>            DL </Allocator>
+</Memory>
+
+<Swap>
+       <Size>          38 GB </Size>
+       <Used>          15 GB </Used>
+       <Free>          23 GB </Free>
+</Swap>
+
+<Directories>
+  <current> C:\Users\Michael\Documents\repos\theory_fea\project\jobs\linear\proj_mesh1_30 </current> <free>    134 GB </free>   <used>    796 GB </used> 
+     <temp> C:\Users\Michael\AppData\Local\Temp </temp>    <free>    134 GB </free>
+</Directories>
+
+<Installation>
+</Installation>
+
