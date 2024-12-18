@@ -49,6 +49,22 @@ Homework solutions have been organized into a series of Jupyter Notebooks for co
 - [Homework 7](./homeworks/hw7/hw7_soln.ipynb)
 - [Homework 8](./homeworks/hw8/hw8_soln.ipynb)
 
+# Project
+
+The **transversely isotropic** problem was chosen of the avaiable [project topics](./project/project_description.pdf) (#7). All project data can be found in the [project](./project/) folder. To re-run the analyses:
+
+```Bash
+cd project/jobs
+
+# Convergence study
+python run_mfe.py convergence
+
+# Sensitivity study
+python run_mfe.py sensitivity
+```
+
+Results are written to `.npy` files. Use `mfe.solve` and `mfe.plot` to plot field results as shown in the [notebook](./project/project_soln.ipynb).
+
 ## Source code
 
 The source code can be found for review in various `.py` files [here](./mfe). Note that there are some legacy functions that either need to be renamed, removed, or cleaned up and re-implemented. Work in progress!
