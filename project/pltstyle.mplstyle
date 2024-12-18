@@ -23,6 +23,6 @@ legend.fancybox: False
 legend.edgecolor: black
 legend.borderaxespad: 0
 
-text.usetex : True
+#text.usetex : True
 
 savefig.bbox : tight
